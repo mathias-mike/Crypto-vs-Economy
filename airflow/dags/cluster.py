@@ -30,12 +30,12 @@ def setup_cluster_vars():
                                     f'{utils.CLUSTER_NAME}SlaveSG',
                                     f'Slave for {utils.CLUSTER_NAME}')
 
-    keypair = aws_handler.get_keypair(ec2, utils.CLUSTER_NAME)
+    keypair_name = aws_handler.get_keypair(ec2, utils.CLUSTER_NAME)
 
     aws_handler.create_default_roles(
         iam,
-        job_flow_role_name=utils.config['EMR']['JOB_FLOW_ROLE_NAME'],
-        service_role_name=utils.config['EMR']['SERVICE_ROLE_NAME'],
+        job_flow_role_name=utils.JOB_FLOW_ROLE_NAME,
+        service_role_name=utils.SERVICE_ROLE_NAME,
         job_flow_role_policy=utils.JOB_FLOW_ROLE_POLICY,
         service_role_policy=utils.SERVICE_ROLE_POLICY,
         job_flow_permission_policy_arn=utils.JOB_FLOW_PERMISSION_POLICY_ARN,
@@ -45,10 +45,13 @@ def setup_cluster_vars():
     Variable.set(utils.SUBNET_ID, subnet_id)
     Variable.set(utils.MASTERE_SG_ID, master_sg_id)
     Variable.set(utils.SLAVE_SG_ID, slave_sg_id)
-    Variable.set(utils.KEYPAIR_NAME, keypair['KeyName'])
+    Variable.set(utils.KEYPAIR_NAME, keypair_name)
 
 def create_cluster():
-    _, emr, _ = aws_handler.get_boto_clients(utils.AWS_REGION, utils.config, emr_get=True)
+    _, emr, iam = aws_handler.get_boto_clients(utils.AWS_REGION, utils.config, emr_get=True, iam_get=True)
+    
+    aws_handler.wait_for_roles(iam, utils.JOB_FLOW_ROLE_NAME, utils.SERVICE_ROLE_POLICY, utils.JOB_FLOW_ROLE_NAME)
+    
     cluster_id = aws_handler.create_emr_cluster(
         emr,
         name=utils.CLUSTER_NAME,
@@ -61,8 +64,8 @@ def create_cluster():
         slave_sg_id=Variable.get(utils.SLAVE_SG_ID),
         keypair_name=Variable.get(utils.KEYPAIR_NAME),
         subnet_id=Variable.get(utils.SUBNET_ID),
-        job_flow_role_name=utils.config['EMR']['JOB_FLOW_ROLE_NAME'],
-        service_role_name=utils.config['EMR']['SERVICE_ROLE_NAME']
+        job_flow_role_name=utils.JOB_FLOW_ROLE_NAME,
+        service_role_name=utils.SERVICE_ROLE_NAME
     )
     Variable.set(utils.CLUSTER_ID, cluster_id)
 

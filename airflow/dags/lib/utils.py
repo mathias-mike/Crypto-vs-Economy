@@ -15,6 +15,9 @@ MASTERE_SG_ID = 'master_sg_id'
 SLAVE_SG_ID = 'slave_sg_id'
 KEYPAIR_NAME = 'keypair_name'
 
+JOB_FLOW_ROLE_NAME = config['EMR']['JOB_FLOW_ROLE_NAME']
+SERVICE_ROLE_NAME = config['EMR']['SERVICE_ROLE_NAME']
+
 JOB_FLOW_ROLE_POLICY = """{
     "Version": "2008-10-17", 
     "Statement": [{

@@ -1,6 +1,8 @@
+from multiprocessing.dummy import current_process
 import boto3
 from botocore.exceptions import ClientError
 import logging
+import time
 
 def get_boto_clients(region_name, config=None, ec2_get=False, emr_get=False, iam_get=False):
     ec2 = None
@@ -52,7 +54,7 @@ def get_keypair(ec2, cluster_name):
     else:
         keypair = keypairs[0]
 
-    return keypair
+    return keypair['KeyName']
 
 
 def create_default_roles(iam, job_flow_role_name, service_role_name, job_flow_role_policy, 
@@ -105,7 +107,7 @@ def create_default_roles(iam, job_flow_role_name, service_role_name, job_flow_ro
                 has_role = True
                 break
 
-        if has_role == False:
+        if not has_role:
             iam.add_role_to_instance_profile(
                 InstanceProfileName=job_flow_role_name,
                 RoleName=job_flow_role_name
@@ -126,6 +128,38 @@ def create_default_roles(iam, job_flow_role_name, service_role_name, job_flow_ro
             raise Exception(f'Error creating InstanceProfileName:{job_flow_role_name} @get_default_roles:\n{e}')
 
 
+def wait_for_roles(iam, job_flow_role_name, service_role_name, instance_profile_name):
+    roles = [job_flow_role_name, service_role_name]
+
+    current_wait_time = 0
+    max_wait_time = 30
+    while current_wait_time < max_wait_time:
+        roles_ready = True
+        for role_name in roles:
+            try:
+                iam.get_role(RoleName=role_name)
+                logging.info(f'Role {role_name} is ready!')
+            except iam.exceptions.NoSuchEntityException as e:
+                logging.warn(f'Role {role_name} not ready! Waiting...')
+                roles_ready = False
+
+        try:
+            iam.get_instance_profile(InstanceProfileName=instance_profile_name)
+            logging.warn(f'InstanceProfile {instance_profile_name} is ready!')
+        except iam.exceptions.NoSuchEntityException as e:
+            logging.warn(f'InstanceProfile {instance_profile_name} not ready! Waiting...')
+            roles_ready = False
+
+        if not roles_ready: time.sleep(1)
+        else: 
+            current_wait_time = 0
+            break
+
+        current_wait_time += 1
+    
+    if current_wait_time == max_wait_time:
+        raise TimeoutError('Wait for roles is taking too long!')
+            
 
 def create_security_group(ec2, vpc_id, group_name, group_description):
     group_id = None
