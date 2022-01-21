@@ -4,6 +4,7 @@ from airflow.operators.python import PythonOperator
 from airflow.models import Variable
 
 import logging
+import time
 
 import lib.utils as utils
 import lib.aws_handler as aws_handler
@@ -47,10 +48,10 @@ def setup_cluster_vars():
     Variable.set(utils.SLAVE_SG_ID, slave_sg_id)
     Variable.set(utils.KEYPAIR_NAME, keypair_name)
 
+
+
 def create_cluster():
-    _, emr, iam = aws_handler.get_boto_clients(utils.AWS_REGION, utils.config, emr_get=True, iam_get=True)
-    
-    aws_handler.wait_for_roles(iam, utils.JOB_FLOW_ROLE_NAME, utils.SERVICE_ROLE_POLICY, utils.JOB_FLOW_ROLE_NAME)
+    _, emr, _ = aws_handler.get_boto_clients(utils.AWS_REGION, utils.config, emr_get=True)
     
     cluster_id = aws_handler.create_emr_cluster(
         emr,
@@ -69,6 +70,38 @@ def create_cluster():
     )
     Variable.set(utils.CLUSTER_ID, cluster_id)
 
+
+def wait():
+    time.sleep(10)
+
+
+def terminate_cluster():
+    _, emr, _ = aws_handler.get_boto_clients(utils.AWS_REGION, utils.config, emr_get=True)
+
+    aws_handler.terminate_cluster(emr, Variable.get(utils.CLUSTER_ID))
+
+
+
+def del_keypair_and_security_group():
+    ec2, _, _ = aws_handler.get_boto_clients(utils.AWS_REGION, utils.config, ec2_get=True)
+
+    aws_handler.del_keypair(ec2, utils.CLUSTER_NAME)
+
+    aws_handler.del_security_groups(ec2, Variable.get(utils.MASTERE_SG_ID), Variable.get(utils.SLAVE_SG_ID))
+
+
+def del_roles():
+    _, _, iam = aws_handler.get_boto_clients(utils.AWS_REGION, utils.config, iam_get=True)
+
+    aws_handler.del_roles(iam, 
+        utils.JOB_FLOW_ROLE_NAME, 
+        utils.SERVICE_ROLE_NAME, 
+        utils.JOB_FLOW_PERMISSION_POLICY_ARN, 
+        utils.SERVICE_PERMISSION_POLICY_ARN
+    )
+
+
+
 with DAG("cluster_setup_dag", start_date=datetime.now()) as dag:
     setup_cluster_task = PythonOperator(
         task_id="setup_cluster_task",
@@ -80,7 +113,35 @@ with DAG("cluster_setup_dag", start_date=datetime.now()) as dag:
         python_callable=create_cluster
     )
 
+    wait_task = PythonOperator(
+        task_id="wait_task",
+        python_callable=wait   
+    )
+
+    terminate_cluster_task = PythonOperator(
+        task_id="terminate_cluster_task",
+        python_callable=terminate_cluster
+    )
+
+    del_keypair_and_security_group_task = PythonOperator(
+        task_id="del_keypair_and_security_group_task",
+        python_callable=del_keypair_and_security_group
+    )
+
+    del_roles_task = PythonOperator(
+        task_id="del_roles_task",
+        python_callable=del_roles
+    )
+
+
     setup_cluster_task >> create_cluster_task
+    create_cluster_task >> wait_task
+    wait_task >> terminate_cluster_task
+    terminate_cluster_task >> del_keypair_and_security_group_task
+    terminate_cluster_task >> del_roles_task
+
+
+
 
 
 
