@@ -15,3 +15,31 @@ MASTERE_SG_ID = 'master_sg_id'
 SLAVE_SG_ID = 'slave_sg_id'
 KEYPAIR_NAME = 'keypair_name'
 
+JOB_FLOW_ROLE_POLICY = """{
+    "Version": "2008-10-17", 
+    "Statement": [{
+        "Sid": "", 
+        "Effect": "Allow", 
+        "Principal": {"Service": "ec2.amazonaws.com"}, 
+        "Action": "sts:AssumeRole" 
+    }]
+}"""
+
+JOB_FLOW_PERMISSION_POLICY_ARN = "arn:aws:iam::aws:policy/service-role/AmazonElasticMapReduceforEC2Role"
+
+SERVICE_ROLE_POLICY = """{
+    "Version": "2008-10-17", 
+    "Statement": [{
+        "Sid": "", 
+        "Effect": "Allow", 
+        "Principal": {"Service": "elasticmapreduce.amazonaws.com"}, 
+        "Action": "sts:AssumeRole"
+    }]
+}"""
+
+SERVICE_PERMISSION_POLICY_ARN = "arn:aws:iam::aws:policy/service-role/AmazonElasticMapReduceRole"
+
+
+
+
+

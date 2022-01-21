@@ -16,7 +16,7 @@ def setup_cluster_vars():
     Variable.delete(utils.SLAVE_SG_ID)
     Variable.delete(utils.KEYPAIR_NAME)
 
-    ec2, _, iam = aws_handler.get_boto_clients(utils.AWS_REGION, utils.config, ec2_get=True, iam_get=True))
+    ec2, _, iam = aws_handler.get_boto_clients(utils.AWS_REGION, utils.config, ec2_get=True, iam_get=True)
 
     vpc_id = aws_handler.get_available_vpc(ec2)
 
@@ -35,7 +35,11 @@ def setup_cluster_vars():
     aws_handler.create_default_roles(
         iam,
         job_flow_role_name=utils.config['EMR']['JOB_FLOW_ROLE_NAME'],
-        service_role_name=utils.config['EMR']['SERVICE_ROLE_NAME']
+        service_role_name=utils.config['EMR']['SERVICE_ROLE_NAME'],
+        job_flow_role_policy=utils.JOB_FLOW_ROLE_POLICY,
+        service_role_policy=utils.SERVICE_ROLE_POLICY,
+        job_flow_permission_policy_arn=utils.JOB_FLOW_PERMISSION_POLICY_ARN,
+        service_permission_policy_arn=utils.SERVICE_PERMISSION_POLICY_ARN
     )
 
     Variable.set(utils.SUBNET_ID, subnet_id)

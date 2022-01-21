@@ -55,31 +55,75 @@ def get_keypair(ec2, cluster_name):
     return keypair
 
 
-def create_default_roles(iam, job_flow_role_name, service_role_name):
+def create_default_roles(iam, job_flow_role_name, service_role_name, job_flow_role_policy, 
+        service_role_policy, job_flow_permission_policy_arn, service_permission_policy_arn):
     try:
-        job_flow_role = iam.get_role(RoleName=job_flow_role_name)
-        service_role = iam.get_role(RoleName=service_role_name)
-        instance_profile = iam.get_instance_profile(InstanceProfileName=job_flow_role_name)
+        iam.get_role(RoleName=job_flow_role_name)
     except iam.exceptions.NoSuchEntityException as e:
-        try:
-            job_flow_role = iam.create_role(
+        logging.warn(f'{job_flow_role_name} not found @get_default_roles:\n{e}\nCreating one...')
+        try:    
+            iam.create_role(
                 RoleName=job_flow_role_name,
                 Path='/',
-                AssumeRolePolicyDocument='arn:aws:iam::aws:policy/service-role/AmazonElasticMapReduceforEC2Role'
+                Description='',
+                AssumeRolePolicyDocument=job_flow_role_policy
             )
 
-            service_role = iam.create_role(
+            iam.attach_role_policy(
+                RoleName=job_flow_role_name,
+                PolicyArn=job_flow_permission_policy_arn
+            )
+        except Exception as e:
+            raise Exception(f'Error creating {job_flow_role_name} @get_default_roles:\n{e}')
+
+
+    try:
+        iam.get_role(RoleName=service_role_name)
+    except iam.exceptions.NoSuchEntityException as e:
+        logging.warn(f'{service_role_name} not found @get_default_roles:\n{e}\nCreating one...')
+        try:
+            iam.create_role(
                 RoleName=service_role_name,
                 Path='/',
-                AssumeRolePolicyDocument='arn:aws:iam::aws:policy/service-role/AmazonElasticMapReduceRole'
+                Description='',
+                AssumeRolePolicyDocument=service_role_policy
             )
 
-            instance_profile = iam.create_instance_profile(
+            iam.attach_role_policy(
+                RoleName=service_role_name,
+                PolicyArn=service_permission_policy_arn
+            )
+        except Exception as e:
+            raise Exception(f'Error creating {service_role_name} @get_default_roles:\n{e}')
+
+
+    try:
+        instance_profile = iam.get_instance_profile(InstanceProfileName=job_flow_role_name)
+        has_role = False
+        for role in instance_profile['InstanceProfile']['Roles']:
+            if role['RoleName'] == job_flow_role_name:
+                has_role = True
+                break
+
+        if has_role == False:
+            iam.add_role_to_instance_profile(
+                InstanceProfileName=job_flow_role_name,
+                RoleName=job_flow_role_name
+            )
+    except iam.exceptions.NoSuchEntityException as e:
+        logging.warn(f'InstanceProfileName:{job_flow_role_name} not found @get_default_roles:\n{e}\nCreating one...')
+        try:
+            iam.create_instance_profile(
                 InstanceProfileName=job_flow_role_name,
                 Path='/'
             )
+
+            iam.add_role_to_instance_profile(
+                InstanceProfileName=job_flow_role_name,
+                RoleName=job_flow_role_name
+            )
         except Exception as e:
-            logging.error(f'Exception output @get_default_roles:\n{e}')
+            raise Exception(f'Error creating InstanceProfileName:{job_flow_role_name} @get_default_roles:\n{e}')
 
 
 
