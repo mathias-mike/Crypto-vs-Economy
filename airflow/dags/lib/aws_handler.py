@@ -1,4 +1,3 @@
-from multiprocessing.dummy import current_process
 import boto3
 from botocore.exceptions import ClientError
 import logging
