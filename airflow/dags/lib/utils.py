@@ -6,8 +6,13 @@ config = configparser.ConfigParser()
 airflow_dir = os.path.split(airflow_config['core']['dags_folder'])[0]
 config.read(f'{airflow_dir}/pipeline.cfg')
 
-CLUSTER_NAME = config['AWS']['CLUSTER_NAME']
-AWS_REGION = config['AWS']['REGION']
+CLUSTER_NAME = 'crypto_economics'
+AWS_REGION = 'us-east-1'
+LOG_URI = 's3://crypto-econs/emr-logs/'
+CORE_INSTANCE_COUNT = 5
+MASTER_INSTANCE_TYPE = 'c5d.2xlarge'
+CORE_INSTANCE_TYPE = 'm5d.2xlarge'
+RELEASE_LABEL = 'emr-5.34.0'
 
 CLUSTER_ID = 'cluster_id'
 SUBNET_ID = 'subnet_id'
