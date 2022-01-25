@@ -24,6 +24,7 @@ def download_data(base_url, endpoint, apikey_append):
 def parse_data(data, spark):
     stock = "Common Stock"
     crypto = "Digital Currency"
+
     stock_meta = None
     crypto_meta = None
     stock_asset_values = None
@@ -65,14 +66,22 @@ def parse_data(data, spark):
                     crypto_asset_values.union(values)
 
 
-    if stock_meta != None and crypto_meta != None and crypto_asset_values != None:
-        stock_meta.write.csv('/home/mike/random/stock_meta')
-    elif crypto_meta != None:
-        crypto_meta.write.csv('/home/mike/random/crypto_meta')
-    elif stock_asset_values != None:
-        stock_asset_values.write.csv('/home/mike/random/stock_asset_values')
-    elif crypto_asset_values != None:
-        crypto_asset_values.write.csv('/home/mike/random/crypto_asset_values')
+    return stock_meta, crypto_meta, stock_asset_values, crypto_asset_values
+
+
+
+def etl(stock_meta, crypto_meta, stock_asset_values, crypto_asset_values):
+    if stock_meta != None:
+        stock_meta.write.csv('/home/mike/random/stock_meta', header=True)
+    
+    if crypto_meta != None:
+        crypto_meta.write.csv('/home/mike/random/crypto_meta', header=True)
+    
+    if stock_asset_values != None:
+        stock_asset_values.write.csv('/home/mike/random/stock_asset_values', header=True)
+    
+    if crypto_asset_values != None:
+        crypto_asset_values.write.csv('/home/mike/random/crypto_asset_values', header=True)
 
 
 
@@ -95,17 +104,11 @@ def main():
     
     data = download_data(base_url, endpoint, apikey_append)
 
-    parse_data(data, spark)
+    stock_meta, crypto_meta, stock_asset_values, crypto_asset_values = parse_data(data, spark)
 
-
-
-
-
-    # save_file(spark)
-
+    etl(stock_meta, crypto_meta, stock_asset_values, crypto_asset_values)
 
     spark.stop()
-
 
 
 
@@ -117,7 +120,7 @@ if __name__ == "__main__":
 
 
 
-
+# spark-submit pull_assets_data.py <12_data_api_key> 2022-01-21 2022-01-22 AAPL,BTC/USD 1h
 
 
 

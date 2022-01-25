@@ -13,7 +13,7 @@ def get_spark_session():
 
 
 
-def fetch_data(spark, indicators, countries, start_year, end_year):
+def download_data(spark, indicators, countries, start_year, end_year):
     indicator_df = pd.DataFrame()
     for indicator in indicators:
         data = wb.download(
@@ -35,20 +35,21 @@ def fetch_data(spark, indicators, countries, start_year, end_year):
             indicator_df = indicator_df.append(data, ignore_index=True)
 
     
+    spark_indicator_df = None
     if indicator_df.shape[0] != 0:
         spark_indicator_df = spark.createDataFrame(indicator_df)
-        print(f'\n\n{spark_indicator_df.show(2)}\n\n')
-        spark_indicator_df.write.csv('/home/mike/random/spark_indicator_df')
+        
+    return spark_indicator_df
 
 
+def etl(spark_indicator_df):
+    if spark_indicator_df != None:
+        spark_indicator_df.write.csv('/home/mike/random/spark_indicator_df', header=True)
 
 
 def main():
     if len(sys.argv) < 5:
         raise Exception('Not enough arguement for spark job!')
-    
-    # '[{"indicator_id":"SL.UEM.TOTL.NE.ZS","indicator_name":"Unemployment"},{"indicator_id":"NY.GDP.MKTP.CD","indicator_name":"GDP"}]'
-    print(f'\n\n{sys.argv[1]}\n\n')
     
     indicators = json.loads(sys.argv[1])
     countries = json.loads(sys.argv[2])
@@ -57,12 +58,11 @@ def main():
 
     spark = get_spark_session()
     
-    fetch_data(spark, indicators, countries, start_year, end_year)
+    spark_indicator_df = download_data(spark, indicators, countries, start_year, end_year)
 
-
+    etl(spark_indicator_df)
 
     spark.stop()
-
 
 
 
@@ -77,6 +77,6 @@ if __name__ == "__main__":
 
 
 
-
+# spark-submit pull_econs_data.py '[{"indicator_id":"SL.UEM.TOTL.NE.ZS","indicator_name":"Unemployment"},{"indicator_id":"NY.GDP.MKTP.CD","indicator_name":"GDP"}]' '["US","NG"]' 2005 2021
 
     
