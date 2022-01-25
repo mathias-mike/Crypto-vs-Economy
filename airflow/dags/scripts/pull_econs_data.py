@@ -44,6 +44,7 @@ def download_data(spark, indicators, countries, start_year, end_year):
 
 def etl(spark_indicator_df):
     if spark_indicator_df != None:
+        
         spark_indicator_df.write.csv('/home/mike/random/spark_indicator_df', header=True)
 
 

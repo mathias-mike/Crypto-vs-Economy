@@ -1,7 +1,11 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import udf
+from pyspark.sql.functions import udf, lit, max as s_max
+from pyspark.sql.functions import year, month, dayofyear, dayofweek, dayofmonth
+from pyspark.sql import types as T
 import requests
+import json
 import sys
+import os
 
 def get_spark_session():
     spark = SparkSession \
@@ -40,61 +44,210 @@ def parse_data(data, spark):
                 if stock_meta == None:
                     stock_meta = meta
                 else:
-                    stock_meta.union(meta)
+                    stock_meta = stock_meta.union(meta)
 
             elif asset_info['meta']['type'] == crypto:
                 if crypto_meta == None:
                     crypto_meta = meta
                 else:
-                    crypto_meta.union(meta)
+                    crypto_meta = crypto_meta.union(meta)
+                
                 
             else: raise Exception('Unrecorgnised asset type!')
 
-
-            asset_name = udf(lambda _: asset)
-            values = values.withColumn('asset', asset_name('datetime'))
+            values = values.withColumn('asset', lit(asset))
             if asset_info['meta']['type'] == stock:
                 if stock_asset_values == None:
                     stock_asset_values = values
                 else:
-                    stock_asset_values.union(values)
+                    stock_asset_values = stock_asset_values.union(values)
 
             elif asset_info['meta']['type'] == crypto:
                 if crypto_asset_values == None:
                     crypto_asset_values = values
                 else:
-                    crypto_asset_values.union(values)
-
+                    crypto_asset_values = crypto_asset_values.union(values)
+                
 
     return stock_meta, crypto_meta, stock_asset_values, crypto_asset_values
 
 
 
-def etl(stock_meta, crypto_meta, stock_asset_values, crypto_asset_values):
-    if stock_meta != None:
-        stock_meta.write.csv('/home/mike/random/stock_meta', header=True)
-    
-    if crypto_meta != None:
-        crypto_meta.write.csv('/home/mike/random/crypto_meta', header=True)
-    
-    if stock_asset_values != None:
-        stock_asset_values.write.csv('/home/mike/random/stock_asset_values', header=True)
-    
-    if crypto_asset_values != None:
-        crypto_asset_values.write.csv('/home/mike/random/crypto_asset_values', header=True)
+def etl_stock(spark, stock_meta, stock_asset_values, companies, output_bucket, stock_path):
+    meta_path = 'meta'
+    data_path = 'data'
+
+    if stock_meta != None and stock_asset_values != None:
+        get_company = udf(lambda symbol: companies[symbol])
+        stock_meta = stock_meta.withColumn('company', get_company('symbol'))
+
+        meta_schema = T.StructType([
+            T.StructField("id", T.IntegerType(), False),
+            T.StructField("symbol", T.StringType(), False),
+            T.StructField("company", T.StringType(), False),
+            T.StructField("currency", T.StringType(), False)
+        ])
+
+        try:
+            prev_meta = spark.read.parquet(output_bucket + stock_path + meta_path)
+            if prev_meta.count() > 0:
+                max_id = prev_meta.select(s_max(prev_meta.id)).collect()[0][0] + 1
+
+                new_stock = stock_meta.join(prev_meta, on=['symbol'], how='left') \
+                                    .select(stock_meta.symbol, stock_meta.company, stock_meta.currency) \
+                                    .where(prev_meta.symbol.isNull())
+
+                if new_stock.count() > 0:
+                    stock_meta_df = new_stock.toPandas()
+                    stock_meta_df.reset_index(inplace=True)
+                    stock_meta_df['id'] = stock_meta_df['index'] + max_id
+                    new_stock = spark.createDataFrame(stock_meta_df[['id', 'symbol', 'company', 'currency']], schema=meta_schema)
+
+                    new_stock.write \
+                        .format('parquet') \
+                        .save(output_bucket + stock_path + meta_path, mode='append')
+
+                    stock_meta = prev_meta.union(new_stock)
+                else:
+                    stock_meta = prev_meta
+
+            else: raise Exception('Take me to: except')
+        except:
+            stock_meta_df = stock_meta.toPandas()
+            stock_meta_df.reset_index(inplace=True)
+            stock_meta_df.rename(columns={'index':'id'}, inplace=True)
+            stock_meta = spark.createDataFrame(stock_meta_df[['id', 'symbol', 'company', 'currency']], schema=meta_schema)
+
+            
+            stock_meta.write \
+                .format('parquet') \
+                .save(output_bucket + stock_path + meta_path, mode='overwrite')
+        
+
+
+        # Stock data
+        join_cols = [stock_asset_values.asset == stock_meta.symbol]
+        stock_asset_values = stock_asset_values.join(stock_meta, on=join_cols, how='inner')
+        stock_asset_values = stock_asset_values.select(
+                                            stock_asset_values.datetime.cast(T.TimestampType()),
+                                            stock_asset_values.open.cast(T.DoubleType()),
+                                            stock_asset_values.high.cast(T.DoubleType()),
+                                            stock_asset_values.low.cast(T.DoubleType()),
+                                            stock_asset_values.close.cast(T.DoubleType()),
+                                            stock_asset_values.volume.cast(T.IntegerType()),
+                                            stock_meta.id,
+                                        )
+
+        stock_asset_values = stock_asset_values.withColumn('year', year(stock_asset_values.datetime)) \
+                                            .withColumn('month', month(stock_asset_values.datetime)) \
+                                            .withColumn('dayofweek', dayofweek(stock_asset_values.datetime)) \
+                                            .withColumn('dayofmonth', dayofmonth(stock_asset_values.datetime)) \
+                                            .withColumn('dayofyear', dayofyear(stock_asset_values.datetime))
+
+        
+        stock_asset_values.write \
+                .format('parquet') \
+                .save(output_bucket + stock_path + data_path, 
+                        mode='append',
+                        partitionBy=['year', 'month'])
+
+
+
+def etl_crypto(spark, crypto_meta, crypto_asset_values, output_bucket, crypto_path):
+    meta_path = 'meta'
+    data_path = 'data'
+
+    if crypto_meta != None and crypto_asset_values != None:
+        meta_schema = T.StructType([
+            T.StructField("id", T.IntegerType(), False),
+            T.StructField("symbol", T.StringType(), False),
+            T.StructField("currency_base", T.StringType(), False),
+            T.StructField("currency_quote", T.StringType(), False)
+        ])
+
+        try:
+            prev_meta = spark.read.parquet(output_bucket + crypto_path + meta_path)
+            if prev_meta.count() > 0:
+                max_id = prev_meta.select(s_max(prev_meta.id)).collect()[0][0] + 1
+
+                new_crypto = crypto_meta.join(prev_meta, on=['symbol'], how='left') \
+                                    .select(crypto_meta.symbol, crypto_meta.currency_base, crypto_meta.currency_quote) \
+                                    .where(prev_meta.symbol.isNull())
+
+                if new_crypto.count() > 0:
+                    crypto_meta_df = new_crypto.toPandas()
+                    crypto_meta_df.reset_index(inplace=True)
+                    crypto_meta_df['id'] = crypto_meta_df['index'] + max_id
+                    new_crypto = spark.createDataFrame(crypto_meta_df[['id', 'symbol', 'currency_base', 'currency_quote']], schema=meta_schema)
+
+                    new_crypto.write \
+                        .format('parquet') \
+                        .save(output_bucket + crypto_path + meta_path, mode='append')
+
+                    crypto_meta = prev_meta.union(new_crypto)
+                else:
+                    crypto_meta = prev_meta
+
+            else: raise Exception('Take me to: except')
+        except:
+            crypto_meta_df = crypto_meta.toPandas()
+            crypto_meta_df.reset_index(inplace=True)
+            crypto_meta_df.rename(columns={'index':'id'}, inplace=True)
+            crypto_meta = spark.createDataFrame(crypto_meta_df[['id', 'symbol', 'currency_base', 'currency_quote']], schema=meta_schema)
+
+            
+            crypto_meta.write \
+                .format('parquet') \
+                .save(output_bucket + crypto_path + meta_path, mode='overwrite')
+        
+
+
+        # Stock data
+        join_cols = [crypto_asset_values.asset == crypto_meta.symbol]
+        crypto_asset_values = crypto_asset_values.join(crypto_meta, on=join_cols, how='inner')
+        crypto_asset_values = crypto_asset_values.select(
+                                            crypto_asset_values.datetime.cast(T.TimestampType()),
+                                            crypto_asset_values.open.cast(T.DoubleType()),
+                                            crypto_asset_values.high.cast(T.DoubleType()),
+                                            crypto_asset_values.low.cast(T.DoubleType()),
+                                            crypto_asset_values.close.cast(T.DoubleType()),
+                                            crypto_meta.id,
+                                        )
+
+        crypto_asset_values = crypto_asset_values.withColumn('year', year(crypto_asset_values.datetime)) \
+                                            .withColumn('month', month(crypto_asset_values.datetime)) \
+                                            .withColumn('dayofweek', dayofweek(crypto_asset_values.datetime)) \
+                                            .withColumn('dayofmonth', dayofmonth(crypto_asset_values.datetime)) \
+                                            .withColumn('dayofyear', dayofyear(crypto_asset_values.datetime))
+
+        
+        crypto_asset_values.write \
+                .format('parquet') \
+                .save(output_bucket + crypto_path + data_path, 
+                        mode='append',
+                        partitionBy=['year', 'month'])
 
 
 
 
 def main():
-    if len(sys.argv) < 6:
+    if len(sys.argv) < 8:
         raise Exception('Not enough arguement for spark job!')
-    
-    _12data_apikey = sys.argv[1]
-    start_date = sys.argv[2]
-    end_date = sys.argv[3]
-    symbols = sys.argv[4]
-    interval = sys.argv[5]
+
+    aws_access_key_id = sys.argv[1]
+    aws_secret_access_key = sys.argv[2]
+
+    os.environ['AWS_ACCESS_KEY_ID'] = aws_access_key_id
+    os.environ['AWS_SECRET_ACCESS_KEY'] = aws_secret_access_key
+
+    _12data_apikey = sys.argv[3]
+    start_date = sys.argv[4]
+    end_date = sys.argv[5]
+    symbols = sys.argv[6]
+    companies = json.loads(sys.argv[7])
+    interval = sys.argv[8]
+    output_bucket = sys.argv[9] # Just the bucket s3 url
+
 
     spark = get_spark_session()
 
@@ -106,7 +259,12 @@ def main():
 
     stock_meta, crypto_meta, stock_asset_values, crypto_asset_values = parse_data(data, spark)
 
-    etl(stock_meta, crypto_meta, stock_asset_values, crypto_asset_values)
+    stock_path = 'crypto_vs_econs/stocks/'
+    crypto_path = 'crypto_vs_econs/cryptos/'
+
+    etl_stock(spark, stock_meta, stock_asset_values, companies, output_bucket, stock_path)
+
+    etl_crypto(spark, crypto_meta, crypto_asset_values, output_bucket, crypto_path)
 
     spark.stop()
 
@@ -120,8 +278,11 @@ if __name__ == "__main__":
 
 
 
-# spark-submit pull_assets_data.py <12_data_api_key> 2022-01-21 2022-01-22 AAPL,BTC/USD 1h
+# spark-submit pull_assets_data.py aaa bbb <twelve_data_api_key> 2022-01-21 2022-01-22 AAPL,TSLA,BTC/USD,ETH/USD '{"AAPL":"Apple","TSLA":"Tesla"}' 1h /home/mike/random/
 
+
+
+# TODO: Read parquet as cvs, got wierd data, when I tried reading it again as parquet I got error  
 
 
 
