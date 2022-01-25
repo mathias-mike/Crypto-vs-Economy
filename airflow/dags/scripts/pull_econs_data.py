@@ -13,8 +13,6 @@ def get_spark_session():
         .getOrCreate()
     return spark
 
-
-
 def download_data(spark, indicators, countries, start_year, end_year):
     indicator_df = pd.DataFrame()
     for indicator in indicators:
@@ -40,7 +38,8 @@ def download_data(spark, indicators, countries, start_year, end_year):
     spark_indicator_df = None
     if indicator_df.shape[0] != 0:
         spark_indicator_df = spark.createDataFrame(indicator_df)
-        spark_indicator_df = spark_indicator_df.filter(spark_indicator_df.value.isNotNull())
+        spark_indicator_df = spark_indicator_df.filter(spark_indicator_df.value.isNotNull()) \
+                                                .where(spark_indicator_df.value != 'NaN')
         
     return spark_indicator_df
 
@@ -49,7 +48,7 @@ def etl_indicator(spark, econs_indicator, output_bucket, base_path):
     indicator_path = 'indicator'
 
     if econs_indicator != None:
-        indicator_table = econs_indicator.select(econs_indicator.symbol, econs_indicator.indicator)
+        indicator_table = econs_indicator.select(econs_indicator.symbol, econs_indicator.indicator).distinct()
         indicator_schema = T.StructType([
             T.StructField("id", T.IntegerType(), False),
             T.StructField("symbol", T.StringType(), False),
@@ -99,7 +98,7 @@ def etl_country(spark, econs_indicator, output_bucket, base_path):
     country_path = 'country'
 
     if econs_indicator != None:
-        country_table = econs_indicator.select(econs_indicator.country)
+        country_table = econs_indicator.select(econs_indicator.country).distinct()
         country_schema = T.StructType([
             T.StructField("id", T.IntegerType(), False),
             T.StructField("country", T.StringType(), False)
@@ -145,17 +144,11 @@ def etl_country(spark, econs_indicator, output_bucket, base_path):
 
 
 
-def etl_econs_data(spark, econs_indicator, output_bucket, base_path, indicator_table, country_table):
+def etl_econs_data(econs_indicator, output_bucket, base_path, indicator_table, country_table):
     econs_data_path = 'econs_data'
 
     if econs_indicator != None:
         econs_data_table = econs_indicator.select(econs_indicator.symbol, econs_indicator.country, econs_indicator.year, econs_indicator.value)
-        econs_data_schema = T.StructType([
-            T.StructField("indicator_id", T.IntegerType(), False),
-            T.StructField("country_id", T.IntegerType(), False),
-            T.StructField("year", T.IntegerType(), False),
-            T.StructField("value", T.DoubleType(), False)
-        ])
 
         econs_data_table = econs_data_table.join(indicator_table, on=[indicator_table.symbol == econs_data_table.symbol], how='inner')
         econs_data_table = econs_data_table.join(country_table, on=[country_table.country == econs_data_table.country], how='inner')
@@ -187,7 +180,11 @@ def main():
 
     base_path = 'crypto_vs_econs/economics/'
 
-    etl(spark, econs_indicator, output_bucket, base_path)
+    indicator_table = etl_indicator(spark, econs_indicator, output_bucket, base_path)
+
+    country_table = etl_country(spark, econs_indicator, output_bucket, base_path)
+
+    etl_econs_data(econs_indicator, output_bucket, base_path, indicator_table, country_table)
 
     spark.stop()
 
