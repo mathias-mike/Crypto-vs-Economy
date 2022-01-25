@@ -1,5 +1,7 @@
 from pyspark.sql import SparkSession
 from pandas_datareader import wb
+from pyspark.sql import types as T
+from pyspark.sql.functions import max as s_max
 import pandas as pd
 import json
 import sys
@@ -17,17 +19,17 @@ def download_data(spark, indicators, countries, start_year, end_year):
     indicator_df = pd.DataFrame()
     for indicator in indicators:
         data = wb.download(
-            indicator=indicator['indicator_id'], 
+            indicator=indicator['symbol'], 
             country=countries, 
             start=start_year, 
             end=end_year
         )
 
         if data.shape[0] > 0 and data.shape[1] > 0:
-            data.rename(columns={indicator['indicator_id']: 'value'}, inplace=True)
+            data.rename(columns={indicator['symbol']: 'value'}, inplace=True)
             data.reset_index(inplace=True)
-            data['indicator'] = indicator['indicator_name']
-            data['indicator_id'] = indicator['indicator_id']
+            data['indicator'] = indicator['indicator']
+            data['symbol'] = indicator['symbol']
 
         if indicator_df.shape[0] == 0:
             indicator_df = data
@@ -38,33 +40,156 @@ def download_data(spark, indicators, countries, start_year, end_year):
     spark_indicator_df = None
     if indicator_df.shape[0] != 0:
         spark_indicator_df = spark.createDataFrame(indicator_df)
+        spark_indicator_df = spark_indicator_df.filter(spark_indicator_df.value.isNotNull())
         
     return spark_indicator_df
 
 
-def etl(spark_indicator_df):
-    if spark_indicator_df != None:
+def etl_indicator(spark, econs_indicator, output_bucket, base_path):
+    indicator_path = 'indicator'
+
+    if econs_indicator != None:
+        indicator_table = econs_indicator.select(econs_indicator.symbol, econs_indicator.indicator)
+        indicator_schema = T.StructType([
+            T.StructField("id", T.IntegerType(), False),
+            T.StructField("symbol", T.StringType(), False),
+            T.StructField("indicator", T.StringType(), False)
+        ])
+
+        try:
+            prev_indicator = spark.read.parquet(output_bucket + base_path + indicator_path)
+            if prev_indicator.count() > 0:
+                max_id = prev_indicator.select(s_max(prev_indicator.id)).collect()[0][0] + 1
+
+                new_indicator = indicator_table.join(prev_indicator, on=['symbol'], how='left') \
+                                    .select(indicator_table.symbol, indicator_table.indicator) \
+                                    .where(prev_indicator.symbol.isNull())
+
+                if new_indicator.count() > 0:
+                    indicator_df = new_indicator.toPandas()
+                    indicator_df.reset_index(inplace=True)
+                    indicator_df['id'] = indicator_df['index'] + max_id
+                    new_indicator = spark.createDataFrame(indicator_df[['id', 'symbol', 'indicator']], schema=indicator_schema)
+
+                    new_indicator.write \
+                        .format('parquet') \
+                        .save(output_bucket + base_path + indicator_path, mode='append')
+
+                    indicator_table = prev_indicator.union(new_indicator)
+                else:
+                    indicator_table = prev_indicator
+
+                return indicator_table
+
+            else: raise Exception('Take me to: except')
+        except:
+            indicator_df = indicator_table.toPandas()
+            indicator_df.reset_index(inplace=True)
+            indicator_df.rename(columns={'index':'id'}, inplace=True)
+            indicator_table = spark.createDataFrame(indicator_df[['id', 'symbol', 'indicator']], schema=indicator_schema)
+
+            indicator_table.write \
+                .format('parquet') \
+                .save(output_bucket + base_path + indicator_path, mode='overwrite')
+
+            return indicator_table
+
+
+def etl_country(spark, econs_indicator, output_bucket, base_path):
+    country_path = 'country'
+
+    if econs_indicator != None:
+        country_table = econs_indicator.select(econs_indicator.country)
+        country_schema = T.StructType([
+            T.StructField("id", T.IntegerType(), False),
+            T.StructField("country", T.StringType(), False)
+        ])
+
+        try:
+            prev_country = spark.read.parquet(output_bucket + base_path + country_path)
+            if prev_country.count() > 0:
+                max_id = prev_country.select(s_max(prev_country.id)).collect()[0][0] + 1
+
+                new_country = country_table.join(prev_country, on=['country'], how='left') \
+                                    .select(country_table.country) \
+                                    .where(prev_country.country.isNull())
+
+                if new_country.count() > 0:
+                    country_df = new_country.toPandas()
+                    country_df.reset_index(inplace=True)
+                    country_df['id'] = country_df['index'] + max_id
+                    new_country = spark.createDataFrame(country_df[['id', 'country']], schema=country_schema)
+
+                    new_country.write \
+                        .format('parquet') \
+                        .save(output_bucket + base_path + country_path, mode='append')
+
+                    country_table = prev_country.union(new_country)
+                else:
+                    country_table = prev_country
+
+                return country_table
+
+            else: raise Exception('Take me to: except')
+        except:
+            country_df = country_table.toPandas()
+            country_df.reset_index(inplace=True)
+            country_df.rename(columns={'index':'id'}, inplace=True)
+            country_table = spark.createDataFrame(country_df[['id', 'country']], schema=country_schema)
+
+            country_table.write \
+                .format('parquet') \
+                .save(output_bucket + base_path + country_path, mode='overwrite')
+
+            return country_table
+
+
+
+def etl_econs_data(spark, econs_indicator, output_bucket, base_path, indicator_table, country_table):
+    econs_data_path = 'econs_data'
+
+    if econs_indicator != None:
+        econs_data_table = econs_indicator.select(econs_indicator.symbol, econs_indicator.country, econs_indicator.year, econs_indicator.value)
+        econs_data_schema = T.StructType([
+            T.StructField("indicator_id", T.IntegerType(), False),
+            T.StructField("country_id", T.IntegerType(), False),
+            T.StructField("year", T.IntegerType(), False),
+            T.StructField("value", T.DoubleType(), False)
+        ])
+
+        econs_data_table = econs_data_table.join(indicator_table, on=[indicator_table.symbol == econs_data_table.symbol], how='inner')
+        econs_data_table = econs_data_table.join(country_table, on=[country_table.country == econs_data_table.country], how='inner')
+        econs_data_table = econs_data_table.select(
+                                            indicator_table.id.alias('indicator_id').cast(T.IntegerType()),
+                                            country_table.id.alias('country_id').cast(T.IntegerType()),
+                                            econs_data_table.year.cast(T.IntegerType()),
+                                            econs_data_table.value.cast(T.DoubleType())
+                                        )
+
+        econs_data_table.write \
+                .format('parquet') \
+                .save(output_bucket + base_path + econs_data_path, mode='append')
+
         
-        spark_indicator_df.write.csv('/home/mike/random/spark_indicator_df', header=True)
-
-
 def main():
-    if len(sys.argv) < 5:
+    if len(sys.argv) < 6:
         raise Exception('Not enough arguement for spark job!')
     
     indicators = json.loads(sys.argv[1])
     countries = json.loads(sys.argv[2])
     start_year = int(sys.argv[3])
     end_year = int(sys.argv[4])
+    output_bucket = sys.argv[5] # Just the bucket s3 url
 
     spark = get_spark_session()
     
-    spark_indicator_df = download_data(spark, indicators, countries, start_year, end_year)
+    econs_indicator = download_data(spark, indicators, countries, start_year, end_year)
 
-    etl(spark_indicator_df)
+    base_path = 'crypto_vs_econs/economics/'
+
+    etl(spark, econs_indicator, output_bucket, base_path)
 
     spark.stop()
-
 
 
 if __name__ == "__main__":
@@ -78,6 +203,6 @@ if __name__ == "__main__":
 
 
 
-# spark-submit pull_econs_data.py '[{"indicator_id":"SL.UEM.TOTL.NE.ZS","indicator_name":"Unemployment"},{"indicator_id":"NY.GDP.MKTP.CD","indicator_name":"GDP"}]' '["US","NG"]' 2005 2021
+# spark-submit pull_econs_data.py '[{"symbol":"SL.UEM.TOTL.NE.ZS","indicator":"Unemployment"},{"symbol":"NY.GDP.MKTP.CD","indicator":"GDP"}]' '["US","NG"]' 2005 2021
 
     
