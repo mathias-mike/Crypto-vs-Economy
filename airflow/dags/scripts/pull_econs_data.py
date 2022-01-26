@@ -4,6 +4,7 @@ from pyspark.sql import types as T
 from pyspark.sql.functions import max as s_max
 import pandas as pd
 import json
+import os
 import sys
 
 def get_spark_session():
@@ -165,14 +166,20 @@ def etl_econs_data(econs_indicator, output_bucket, base_path, indicator_table, c
 
         
 def main():
-    if len(sys.argv) < 6:
+    if len(sys.argv) < 8:
         raise Exception('Not enough arguement for spark job!')
+
+    aws_access_key_id = sys.argv[1]
+    aws_secret_access_key = sys.argv[2]
+
+    os.environ['AWS_ACCESS_KEY_ID'] = aws_access_key_id
+    os.environ['AWS_SECRET_ACCESS_KEY'] = aws_secret_access_key
     
-    indicators = json.loads(sys.argv[1])
-    countries = json.loads(sys.argv[2])
-    start_year = int(sys.argv[3])
-    end_year = int(sys.argv[4])
-    output_bucket = sys.argv[5] # Just the bucket s3 url
+    indicators = json.loads(sys.argv[3])
+    countries = json.loads(sys.argv[4])
+    start_year = int(sys.argv[5])
+    end_year = int(sys.argv[6])
+    output_bucket = sys.argv[7] # Just the bucket s3 url
 
     spark = get_spark_session()
     

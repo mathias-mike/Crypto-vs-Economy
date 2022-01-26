@@ -1,9 +1,16 @@
+
+
+
+
+# TODO: Boostrap install dependency files while running job
+
+
+
 from datetime import datetime
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.models import Variable
 
-import logging
 import time
 
 import lib.utils as utils
@@ -56,7 +63,6 @@ def create_cluster():
     cluster_id = aws_handler.create_emr_cluster(
         emr,
         name=utils.CLUSTER_NAME,
-        log_uri=utils.LOG_URI,
         release_label=utils.RELEASE_LABEL,
         master_instance_type=utils.MASTER_INSTANCE_TYPE,
         slave_instance_type=utils.CORE_INSTANCE_TYPE,
@@ -102,7 +108,7 @@ def del_roles():
 
 
 
-with DAG("cluster_setup_dag", start_date=datetime.now()) as dag:
+with DAG("cluster_dag", start_date=datetime.now()) as dag:
     setup_cluster_task = PythonOperator(
         task_id="setup_cluster_task",
         python_callable=setup_cluster_vars

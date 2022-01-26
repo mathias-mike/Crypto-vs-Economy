@@ -31,6 +31,20 @@ def get_boto_clients(region_name, config=None, ec2_get=False, emr_get=False, iam
 
 
 
+def get_s3_client(region_name, config=None):
+    s3 = None
+
+    if config != None and config['AWS']['ACCESS_KEY_ID'] != '' and config['AWS']['SECRET_ACCESS_KEY'] != '':
+        s3 = boto3.client("s3", region_name=region_name, 
+                        aws_access_key_id=config['AWS']['ACCESS_KEY_ID'], 
+                        aws_secret_access_key=config['AWS']['SECRET_ACCESS_KEY'])
+    else:
+        s3 = boto3.client("s3", region_name=region_name)
+
+    return s3
+
+
+
 def get_available_vpc(ec2):
     return ec2.describe_vpcs(Filters=[{'Name': 'state', 'Values': ['available']}]) \
                 .get('Vpcs', [{}])[0] \
@@ -167,8 +181,7 @@ def get_cluster_state(emr, cluster_id):
 
 
 
-def create_emr_cluster(emr, name, 
-        log_uri=None,
+def create_emr_cluster(emr, name,
         release_label='emr-5.34.0',
         master_instance_type=None,
         slave_instance_type=None,
@@ -195,7 +208,6 @@ def create_emr_cluster(emr, name,
 
                 cluster_response = emr.run_job_flow(
                     Name=name,
-                    LogUri=log_uri,
                     ReleaseLabel=release_label,
                     Instances={
                         'InstanceGroups': [

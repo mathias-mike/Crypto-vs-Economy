@@ -6,9 +6,10 @@ config = configparser.ConfigParser()
 airflow_dir = os.path.split(airflow_config['core']['dags_folder'])[0]
 config.read(f'{airflow_dir}/pipeline.cfg')
 
+S3_BUCKET = config['AWS']['S3_BUCKET']  # s3://<bucket-name>/
+
 CLUSTER_NAME = 'crypto_economics'
 AWS_REGION = 'us-east-1'
-LOG_URI = 's3://crypto-econs/emr-logs/'
 CORE_INSTANCE_COUNT = 5
 MASTER_INSTANCE_TYPE = 'c5d.2xlarge'
 CORE_INSTANCE_TYPE = 'm5d.2xlarge'
@@ -19,6 +20,7 @@ SUBNET_ID = 'subnet_id'
 MASTERE_SG_ID = 'master_sg_id'
 SLAVE_SG_ID = 'slave_sg_id'
 KEYPAIR_NAME = 'keypair_name'
+ECONS_SCRIPT_LAST_RUN = 'econs_script_last_run'
 
 JOB_FLOW_ROLE_NAME = 'EMR_EC2_DefaultRole'
 SERVICE_ROLE_NAME = 'EMR_DefaultRole'

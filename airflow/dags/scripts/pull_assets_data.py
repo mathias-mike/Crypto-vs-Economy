@@ -231,22 +231,24 @@ def etl_crypto(spark, crypto_meta, crypto_asset_values, output_bucket, crypto_pa
 
 
 def main():
-    if len(sys.argv) < 8:
+    if len(sys.argv) < 2:
         raise Exception('Not enough arguement for spark job!')
 
-    aws_access_key_id = sys.argv[1]
-    aws_secret_access_key = sys.argv[2]
+    script_args = json.loads(sys.argv[1])
+
+    aws_access_key_id = script_args['aws_access_key_id']
+    aws_secret_access_key = script_args['aws_secret_access_key']
 
     os.environ['AWS_ACCESS_KEY_ID'] = aws_access_key_id
     os.environ['AWS_SECRET_ACCESS_KEY'] = aws_secret_access_key
 
-    _12data_apikey = sys.argv[3]
-    start_date = sys.argv[4]
-    end_date = sys.argv[5]
-    symbols = sys.argv[6]
-    companies = json.loads(sys.argv[7])
-    interval = sys.argv[8]
-    output_bucket = sys.argv[9] # Just the bucket s3 url
+    _12data_apikey = script_args['_12data_apikey']
+    start_date = script_args['start_date']
+    end_date = script_args['end_date']
+    symbols = ['symbols']
+    companies = ['companies']
+    interval = ['interval']
+    output_bucket = ['output_bucket']
 
 
     spark = get_spark_session()
