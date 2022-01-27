@@ -87,6 +87,9 @@ def terminate_cluster():
 
     aws_handler.terminate_cluster(emr, Variable.get(utils.DELETE_CLUSTER))
 
+    s3 = aws_handler.get_s3_client(utils.S3_BUCKET, utils.config)
+    spark_handler.delete_file_from_s3(s3, utils.S3_BUCKET, 'crypto_vs_econs/scripts/' + 'bootstrap.sh')
+
 
 
 def del_keypair_and_security_group():

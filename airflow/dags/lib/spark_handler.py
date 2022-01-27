@@ -60,7 +60,12 @@ def wait_on_step(emr, cluster_id, step_id):
 
 
 def delete_file_from_s3(s3, bucket, file):
-    location = bucket + file
+    response = s3.delete_object(
+        Bucket=bucket,
+        Key=file
+    )
+
+    return response['DeleteMarker']
 
     
 

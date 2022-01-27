@@ -45,7 +45,8 @@ def run_assets_script(**kwargs):
     _, emr, _ = aws_handler.get_boto_clients(utils.AWS_REGION, utils.config, emr_get=True)
     cluster_id = Variable.get(utils.CLUSTER_ID)
     step_name = "Pull assets data, transform and load to s3"
-    script_location = utils.S3_BUCKET + 'crypto_vs_econs/scripts/' +  'pull_assets_data.py'
+    file = 'crypto_vs_econs/scripts/' +  'pull_assets_data.py'
+    script_location = utils.S3_BUCKET + file
 
     aws_access_key_id = utils.config['AWS']['ACCESS_KEY_ID']
     aws_secret_access_key = utils.config['AWS']['SECRET_ACCESS_KEY']
@@ -76,6 +77,9 @@ def run_assets_script(**kwargs):
 
     spark_handler.submit_spark_job(emr, cluster_id, step_name, script_location, script_args)
 
+    s3 = aws_handler.get_s3_client(utils.AWS_REGION, utils.config)
+    spark_handler.delete_file_from_s3(s3, utils.S3_BUCKET, file)
+
     Variable.set(utils.ASSETS_SCRIPT_DONE, True)
 
 
@@ -84,7 +88,8 @@ def run_econs_script(**kwargs):
     _, emr, _ = aws_handler.get_boto_clients(utils.AWS_REGION, utils.config, emr_get=True)
     cluster_id = Variable.get(utils.CLUSTER_ID)
     step_name = "Pull econs data, transform and load to s3"
-    script_location = utils.S3_BUCKET + 'crypto_vs_econs/scripts/' +  'pull_econs_data.py'
+    file = 'crypto_vs_econs/scripts/' +  'pull_econs_data.py'
+    script_location = utils.S3_BUCKET + file
 
     aws_access_key_id = utils.config['AWS']['ACCESS_KEY_ID']
     aws_secret_access_key = utils.config['AWS']['SECRET_ACCESS_KEY']
@@ -128,6 +133,11 @@ def run_econs_script(**kwargs):
     }}"""
 
     spark_handler.submit_spark_job(emr, cluster_id, step_name, script_location, script_args)
+
+    s3 = aws_handler.get_s3_client(utils.AWS_REGION, utils.config)
+    spark_handler.delete_file_from_s3(s3, utils.S3_BUCKET, file)
+
+
     Variable.set(utils.ECONS_SCRIPT_DONE, True)
 
 
