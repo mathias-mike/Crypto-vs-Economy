@@ -13,15 +13,14 @@ def upload_assets_scritp_to_s3():
     s3 = aws_handler.get_s3_client(utils.AWS_REGION, utils.config)
     s3_path = 'crypto_vs_econs/scripts/'
     file_name = 'pull_assets_data.py'
-    file_path = './scripts/'
 
-    spark_handler.upload_file_to_s3(s3, utils.S3_BUCKET, s3_path, file_path, file_name)
+    spark_handler.upload_file_to_s3(s3, utils.S3_BUCKET, s3_path, utils.SCRIPTS_PATH, file_name)
 
 
 
 def upload_econs_script_to_s3(**kwargs):
-    prev_task_run = Variable.get(utils.ECONS_SCRIPT_LAST_RUN, default_var=None)
-    current_dag_run_date = kwargs['ds']
+    prev_task_run = datetime.fromisoformat(Variable.get(utils.ECONS_SCRIPT_LAST_RUN, default_var=None))
+    current_dag_run_date = datetime.fromisoformat(kwargs['ds'])
     
     if prev_task_run != None:
         if prev_task_run < current_dag_run_date - timedelta(days=365):
@@ -33,9 +32,8 @@ def upload_econs_script_to_s3(**kwargs):
     s3 = aws_handler.get_s3_client(utils.AWS_REGION, utils.config)
     s3_path = 'crypto_vs_econs/scripts/'
     file_name = 'pull_econs_data.py'
-    file_path = './scripts/'
 
-    spark_handler.upload_file_to_s3(s3, utils.S3_BUCKET, s3_path, file_path, file_name)
+    spark_handler.upload_file_to_s3(s3, utils.S3_BUCKET, s3_path, utils.SCRIPTS_PATH, file_name)
 
     Variable.set(utils.ECONS_SCRIPT_LAST_RUN, current_dag_run_date)
 
@@ -46,13 +44,13 @@ def run_assets_script(**kwargs):
     cluster_id = Variable.get(utils.CLUSTER_ID)
     step_name = "Pull assets data, transform and load to s3"
     file = 'crypto_vs_econs/scripts/' +  'pull_assets_data.py'
-    script_location = utils.S3_BUCKET + file
+    script_location = 's3://' +  utils.S3_BUCKET + '/' + file
 
     aws_access_key_id = utils.config['AWS']['ACCESS_KEY_ID']
     aws_secret_access_key = utils.config['AWS']['SECRET_ACCESS_KEY']
     _12data_apikey = utils.config['TWELVE_DATA']['API_KEY']
-    start_date = str(kwargs['ds'] - timedelta(days=1))
-    end_date = str(kwargs['ds'])
+    start_date = str(datetime.fromisoformat(kwargs['ds']) - timedelta(days=1))
+    end_date = str(datetime.fromisoformat(kwargs['ds']))
     symbols = 'AAPL,TSLA,GOOGL,AMZN,BTC/USD,ETH/USD,BNB/USD,LTC/USD'
     companies = '''{
         "AAPL":"Apple Inc.",
@@ -77,8 +75,8 @@ def run_assets_script(**kwargs):
 
     spark_handler.submit_spark_job(emr, cluster_id, step_name, script_location, script_args)
 
-    s3 = aws_handler.get_s3_client(utils.AWS_REGION, utils.config)
-    spark_handler.delete_file_from_s3(s3, utils.S3_BUCKET, file)
+    # s3 = aws_handler.get_s3_client(utils.AWS_REGION, utils.config)
+    # spark_handler.delete_file_from_s3(s3, utils.S3_BUCKET, file)
 
     Variable.set(utils.ASSETS_SCRIPT_DONE, True)
 
@@ -89,7 +87,7 @@ def run_econs_script(**kwargs):
     cluster_id = Variable.get(utils.CLUSTER_ID)
     step_name = "Pull econs data, transform and load to s3"
     file = 'crypto_vs_econs/scripts/' +  'pull_econs_data.py'
-    script_location = utils.S3_BUCKET + file
+    script_location = 's3://' + utils.S3_BUCKET + '/' + file
 
     aws_access_key_id = utils.config['AWS']['ACCESS_KEY_ID']
     aws_secret_access_key = utils.config['AWS']['SECRET_ACCESS_KEY']
@@ -117,7 +115,7 @@ def run_econs_script(**kwargs):
     ]'''
     countries = '["US", "NG", "UK", "CA", "CN"]'
 
-    year = kwargs['ds'].year - 1 # As data for current year might not be filled in yet
+    year = datetime.fromisoformat(kwargs['ds']).year - 1 # As data for current year might not be filled in yet
     start_year = year
     end_year = year
     output_bucket = utils.S3_BUCKET # Just the bucket s3 url
@@ -134,8 +132,8 @@ def run_econs_script(**kwargs):
 
     spark_handler.submit_spark_job(emr, cluster_id, step_name, script_location, script_args)
 
-    s3 = aws_handler.get_s3_client(utils.AWS_REGION, utils.config)
-    spark_handler.delete_file_from_s3(s3, utils.S3_BUCKET, file)
+    # s3 = aws_handler.get_s3_client(utils.AWS_REGION, utils.config)
+    # spark_handler.delete_file_from_s3(s3, utils.S3_BUCKET, file)
 
 
     Variable.set(utils.ECONS_SCRIPT_DONE, True)
@@ -152,12 +150,12 @@ def exit_from_dag():
 
 
 
-with DAG("cluster_setup_dag", start_date=datetime.now()) as dag:
+with DAG("spark_dag", start_date=datetime.now()) as dag:
 
     initializing_task = VariableAvailSensor(
         task_id="initializing",
         poke_interval=120,
-        varname=[utils.CLUSTER_ID],
+        varnames=[utils.CLUSTER_ID],
         mode='reschedule'
     )
 

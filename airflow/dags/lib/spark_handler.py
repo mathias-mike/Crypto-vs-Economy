@@ -4,10 +4,10 @@ import time
 
 
 def upload_file_to_s3(s3, bucket, s3_path, file_path, file_name):
-    s3_location = bucket + s3_path
     file_location = file_path + file_name
+    key = s3_path + file_name
 
-    s3.upload_file(file_location, s3_location, file_name)
+    s3.upload_file(file_location, bucket, key)
 
 
 def submit_spark_job(emr, cluster_id, step_name, script_location, script_args):

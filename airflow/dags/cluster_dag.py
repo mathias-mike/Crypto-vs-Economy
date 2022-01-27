@@ -55,14 +55,13 @@ def upload_bootsrap_script():
     s3 = aws_handler.get_s3_client(utils.AWS_REGION, utils.config)
     s3_path = 'crypto_vs_econs/scripts/'
     file_name = 'bootstrap.sh'
-    file_path = './scripts/'
 
-    spark_handler.upload_file_to_s3(s3, utils.S3_BUCKET, s3_path, file_path, file_name)
+    spark_handler.upload_file_to_s3(s3, utils.S3_BUCKET, s3_path, utils.SCRIPTS_PATH, file_name)
 
 
 def create_cluster():
     _, emr, _ = aws_handler.get_boto_clients(utils.AWS_REGION, utils.config, emr_get=True)
-    bootstrap_script_path = utils.S3_BUCKET + 'crypto_vs_econs/scripts/' + 'bootstrap.sh'
+    bootstrap_script_path = 's3://' + utils.S3_BUCKET + '/crypto_vs_econs/scripts/' + 'bootstrap.sh'
     
     cluster_id = aws_handler.create_emr_cluster(
         emr,
@@ -131,7 +130,7 @@ with DAG("cluster_dag", start_date=datetime.now()) as dag:
     wait_for_spark_runs_task = VariableAvailSensor(
         task_id="wait_for_spark_runs",
         poke_interval=120,
-        varname=[utils.DELETE_CLUSTER],
+        varnames=[utils.DELETE_CLUSTER],
         mode='reschedule'
     )
 

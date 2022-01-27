@@ -5,6 +5,8 @@ from airflow.models import Variable
 class VariableAvailSensor(BaseSensorOperator):
     @apply_defaults
     def __init__(self, varnames, *args, **kwargs):
+        super(VariableAvailSensor, self).__init__(*args, **kwargs)
+        
         self.varnames = varnames
 
     

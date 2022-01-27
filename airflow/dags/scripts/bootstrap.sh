@@ -1,4 +1,5 @@
 #!/bin/bash
-# This script installs dependencies that would be used by the spark nodes
-pip install requests pandas pandas-datareader
+
+# Non-standard and non-Amazon Machine Image Python modules:
+sudo python3 -m pip install requests pandas pandas-datareader
 

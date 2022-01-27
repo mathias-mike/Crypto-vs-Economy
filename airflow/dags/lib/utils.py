@@ -7,10 +7,11 @@ airflow_dir = os.path.split(airflow_config['core']['dags_folder'])[0]
 config.read(f'{airflow_dir}/pipeline.cfg')
 
 S3_BUCKET = config['AWS']['S3_BUCKET']  # s3://<bucket-name>/
+SCRIPTS_PATH = airflow_dir + '/dags/scripts/'
 
 CLUSTER_NAME = 'crypto_economics'
 AWS_REGION = 'us-east-1'
-CORE_INSTANCE_COUNT = 5
+CORE_INSTANCE_COUNT = 2
 MASTER_INSTANCE_TYPE = 'c5d.2xlarge'
 CORE_INSTANCE_TYPE = 'm5d.2xlarge'
 RELEASE_LABEL = 'emr-5.34.0'
