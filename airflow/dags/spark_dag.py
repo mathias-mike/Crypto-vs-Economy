@@ -4,8 +4,6 @@ from airflow.operators.python import PythonOperator
 from VariableAvailSensor import VariableAvailSensor
 from airflow.models import Variable
 
-import time
-
 import lib.utils as utils
 import lib.aws_handler as aws_handler
 import lib.spark_handler as spark_handler
@@ -17,7 +15,7 @@ def upload_assets_scritp_to_s3():
     file_name = 'pull_assets_data.py'
     file_path = './scripts/'
 
-    spark_handler.upload_spark_scripts(s3, utils.S3_BUCKET, s3_path, file_path, file_name)
+    spark_handler.upload_file_to_s3(s3, utils.S3_BUCKET, s3_path, file_path, file_name)
 
 
 
@@ -37,7 +35,7 @@ def upload_econs_script_to_s3(**kwargs):
     file_name = 'pull_econs_data.py'
     file_path = './scripts/'
 
-    spark_handler.upload_spark_scripts(s3, utils.S3_BUCKET, s3_path, file_path, file_name)
+    spark_handler.upload_file_to_s3(s3, utils.S3_BUCKET, s3_path, file_path, file_name)
 
     Variable.set(utils.ECONS_SCRIPT_LAST_RUN, current_dag_run_date)
 

@@ -191,7 +191,8 @@ def create_emr_cluster(emr, name,
         keypair_name=None,
         subnet_id=None,
         job_flow_role_name='EMR_EC2_DefaultRole',
-        service_role_name='EMR_DefaultRole' ):
+        service_role_name='EMR_DefaultRole',
+        bootstrap_script_path=None):
 
     clusters = emr.list_clusters(ClusterStates=['STARTING', 'RUNNING', 'WAITING', 'BOOTSTRAPPING'])
     active_clusters = [cluster for cluster in clusters['Clusters'] if cluster['Name']==name]
@@ -240,7 +241,15 @@ def create_emr_cluster(emr, name,
                         {'Name': 'spark'},
                         {'Name': 'hive'},
                         {'Name': 'zeppelin'}
-                    ]
+                    ],
+                    BootstrapActions=[
+                        {
+                            'Name': 'Dependency Installer',
+                            'ScriptBootstrapAction': {
+                                'Path': bootstrap_script_path
+                            }
+                        },
+                    ],
                 )
 
                 break

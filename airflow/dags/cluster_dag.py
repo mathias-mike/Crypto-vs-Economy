@@ -1,27 +1,12 @@
-
-
-
-# import requests
-# import json
-# import sys
-# import os
-# from pandas_datareader import wb
-# import pandas as pd
-
-# TODO: Boostrap install dependency files while running job
-
-
-
 from datetime import datetime
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from VariableAvailSensor import VariableAvailSensor
 from airflow.models import Variable
 
-import time
-
 import lib.utils as utils
 import lib.aws_handler as aws_handler
+import lib.spark_handler as spark_handler
 
 
 def setup_cluster_vars():
@@ -66,9 +51,18 @@ def setup_cluster_vars():
     Variable.set(utils.KEYPAIR_NAME, keypair_name)
 
 
+def upload_bootsrap_script():
+    s3 = aws_handler.get_s3_client(utils.AWS_REGION, utils.config)
+    s3_path = 'crypto_vs_econs/scripts/'
+    file_name = 'bootstrap.sh'
+    file_path = './scripts/'
+
+    spark_handler.upload_file_to_s3(s3, utils.S3_BUCKET, s3_path, file_path, file_name)
+
 
 def create_cluster():
     _, emr, _ = aws_handler.get_boto_clients(utils.AWS_REGION, utils.config, emr_get=True)
+    bootstrap_script_path = utils.S3_BUCKET + 'crypto_vs_econs/scripts/' + 'bootstrap.sh'
     
     cluster_id = aws_handler.create_emr_cluster(
         emr,
@@ -82,7 +76,8 @@ def create_cluster():
         keypair_name=Variable.get(utils.KEYPAIR_NAME),
         subnet_id=Variable.get(utils.SUBNET_ID),
         job_flow_role_name=utils.JOB_FLOW_ROLE_NAME,
-        service_role_name=utils.SERVICE_ROLE_NAME
+        service_role_name=utils.SERVICE_ROLE_NAME,
+        bootstrap_script_path=bootstrap_script_path
     )
     Variable.set(utils.CLUSTER_ID, cluster_id)
 
@@ -120,6 +115,11 @@ with DAG("cluster_dag", start_date=datetime.now()) as dag:
         python_callable=setup_cluster_vars
     )
 
+    upload_bootstrap_script_task = PythonOperator(
+        task_id="upload_bootstrap_script_task",
+        python_callable=upload_bootsrap_script
+    )
+
     create_cluster_task = PythonOperator(
         task_id="create_cluster_task",
         python_callable=create_cluster
@@ -148,7 +148,9 @@ with DAG("cluster_dag", start_date=datetime.now()) as dag:
     )
 
 
-    setup_cluster_task >> create_cluster_task
+
+    setup_cluster_task >> upload_bootstrap_script_task
+    upload_bootstrap_script_task >> create_cluster_task
     create_cluster_task >> wait_for_spark_runs_task
     wait_for_spark_runs_task >> terminate_cluster_task
     terminate_cluster_task >> del_keypair_and_security_group_task

@@ -3,7 +3,7 @@ import logging
 import time
 
 
-def upload_spark_scripts(s3, bucket, s3_path, file_path, file_name):
+def upload_file_to_s3(s3, bucket, s3_path, file_path, file_name):
     s3_location = bucket + s3_path
     file_location = file_path + file_name
 
@@ -56,6 +56,11 @@ def wait_on_step(emr, cluster_id, step_id):
 
         if current_state in ['CANCELLED','FAILED','INTERRUPTED']:
             raise Exception(f'Step run failed with state {current_state}')
+
+
+
+def delete_file_from_s3(s3, bucket, file):
+    location = bucket + file
 
     
 
