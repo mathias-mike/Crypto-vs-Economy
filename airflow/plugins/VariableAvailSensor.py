@@ -4,14 +4,19 @@ from airflow.models import Variable
 
 class VariableAvailSensor(BaseSensorOperator):
     @apply_defaults
-    def __init__(self, varname, *args, **kwargs):
-        self.varname = varname
+    def __init__(self, varnames, *args, **kwargs):
+        self.varnames = varnames
 
     
     def poke(self, context):
-        variable = Variable.get(self.name, default_var=None)
 
-        return True if variable else False
+        status = True
+        for var in self.varnames:
+            variable = Variable.get(var, default_var=None)
+            if variable == None:
+                status = False
+
+        return status
 
 
 

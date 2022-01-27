@@ -16,11 +16,17 @@ CORE_INSTANCE_TYPE = 'm5d.2xlarge'
 RELEASE_LABEL = 'emr-5.34.0'
 
 CLUSTER_ID = 'cluster_id'
+DELETE_CLUSTER = 'delete_cluster'
 SUBNET_ID = 'subnet_id'
 MASTERE_SG_ID = 'master_sg_id'
 SLAVE_SG_ID = 'slave_sg_id'
 KEYPAIR_NAME = 'keypair_name'
+
 ECONS_SCRIPT_LAST_RUN = 'econs_script_last_run'
+
+ASSETS_SCRIPT_DONE = 'done_with_assets'
+ECONS_SCRIPT_DONE = 'done_with_econs'
+
 
 JOB_FLOW_ROLE_NAME = 'EMR_EC2_DefaultRole'
 SERVICE_ROLE_NAME = 'EMR_DefaultRole'

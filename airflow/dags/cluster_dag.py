@@ -1,6 +1,12 @@
 
 
 
+# import requests
+# import json
+# import sys
+# import os
+# from pandas_datareader import wb
+# import pandas as pd
 
 # TODO: Boostrap install dependency files while running job
 
@@ -9,6 +15,7 @@
 from datetime import datetime
 from airflow import DAG
 from airflow.operators.python import PythonOperator
+from VariableAvailSensor import VariableAvailSensor
 from airflow.models import Variable
 
 import time
@@ -23,6 +30,9 @@ def setup_cluster_vars():
     Variable.delete(utils.MASTERE_SG_ID)
     Variable.delete(utils.SLAVE_SG_ID)
     Variable.delete(utils.KEYPAIR_NAME)
+    Variable.delete(utils.DELETE_CLUSTER)
+    Variable.delete(utils.ASSETS_SCRIPT_DONE)
+    Variable.delete(utils.ECONS_SCRIPT_DONE)
 
     ec2, _, iam = aws_handler.get_boto_clients(utils.AWS_REGION, utils.config, ec2_get=True, iam_get=True)
 
@@ -77,14 +87,10 @@ def create_cluster():
     Variable.set(utils.CLUSTER_ID, cluster_id)
 
 
-def wait():
-    time.sleep(10)
-
-
 def terminate_cluster():
     _, emr, _ = aws_handler.get_boto_clients(utils.AWS_REGION, utils.config, emr_get=True)
 
-    aws_handler.terminate_cluster(emr, Variable.get(utils.CLUSTER_ID))
+    aws_handler.terminate_cluster(emr, Variable.get(utils.DELETE_CLUSTER))
 
 
 
@@ -119,9 +125,11 @@ with DAG("cluster_dag", start_date=datetime.now()) as dag:
         python_callable=create_cluster
     )
 
-    wait_task = PythonOperator(
-        task_id="wait_task",
-        python_callable=wait   
+    wait_for_spark_runs_task = VariableAvailSensor(
+        task_id="wait_for_spark_runs",
+        poke_interval=120,
+        varname=[utils.DELETE_CLUSTER],
+        mode='reschedule'
     )
 
     terminate_cluster_task = PythonOperator(
@@ -141,8 +149,8 @@ with DAG("cluster_dag", start_date=datetime.now()) as dag:
 
 
     setup_cluster_task >> create_cluster_task
-    create_cluster_task >> wait_task
-    wait_task >> terminate_cluster_task
+    create_cluster_task >> wait_for_spark_runs_task
+    wait_for_spark_runs_task >> terminate_cluster_task
     terminate_cluster_task >> del_keypair_and_security_group_task
     terminate_cluster_task >> del_roles_task
 

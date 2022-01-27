@@ -1,13 +1,4 @@
-
-
-# TODO: Parse json data for arguements passed to spark scripts
-
-
-
-
-from ctypes import util
-from datetime import date, datetime, timedelta
-from email.policy import default
+from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from VariableAvailSensor import VariableAvailSensor
@@ -36,6 +27,9 @@ def upload_econs_script_to_s3(**kwargs):
     
     if prev_task_run != None:
         if prev_task_run < current_dag_run_date - timedelta(days=365):
+
+            Variable.set(utils.ECONS_SCRIPT_DONE, True)
+
             raise AirflowSkipException(f"No updates yet from last fetch ({prev_task_run}).")
 
     s3 = aws_handler.get_s3_client(utils.AWS_REGION, utils.config)
@@ -83,6 +77,8 @@ def run_assets_script(**kwargs):
     }}"""
 
     spark_handler.submit_spark_job(emr, cluster_id, step_name, script_location, script_args)
+
+    Variable.set(utils.ASSETS_SCRIPT_DONE, True)
 
 
 
@@ -134,10 +130,17 @@ def run_econs_script(**kwargs):
     }}"""
 
     spark_handler.submit_spark_job(emr, cluster_id, step_name, script_location, script_args)
+    Variable.set(utils.ECONS_SCRIPT_DONE, True)
 
 
 def exit_from_dag():
+    cluster_id = Variable.get(utils.CLUSTER_ID)
+
     Variable.delete(utils.CLUSTER_ID)
+    Variable.delete(utils.ECONS_SCRIPT_DONE)
+    Variable.delete(utils.ECONS_SCRIPT_DONE)
+
+    Variable.set(utils.DELETE_CLUSTER, cluster_id)
 
 
 
@@ -146,7 +149,7 @@ with DAG("cluster_setup_dag", start_date=datetime.now()) as dag:
     initializing_task = VariableAvailSensor(
         task_id="initializing",
         poke_interval=120,
-        varname=utils.CLUSTER_ID,
+        varname=[utils.CLUSTER_ID],
         mode='reschedule'
     )
 
@@ -177,16 +180,26 @@ with DAG("cluster_setup_dag", start_date=datetime.now()) as dag:
         provide_context=True
     )
 
-    initializing_task = VariableAvailSensor(
-        task_id="initializing",
+
+    wait_for_spark_complete_task = VariableAvailSensor(
+        task_id="wait_for_spark_complete",
         poke_interval=120,
-        varname=utils.CLUSTER_ID,
+        timeout = 600,
+        varnames=[utils.ASSETS_SCRIPT_DONE, utils.ECONS_SCRIPT_DONE],
         mode='reschedule'
     )
 
+    finish_task = PythonOperator(
+        task_id="finish_task",
+        python_callable=exit_from_dag
+    )
 
 
+    initializing_task >> [upload_assets_scritp_to_s3_task, upload_econs_script_to_s3_task]
+    upload_assets_scritp_to_s3_task >> run_assets_script_task
+    upload_econs_script_to_s3_task >> run_econs_scripts_task
 
+    wait_for_spark_complete_task >> finish_task
 
 
 
