@@ -9,12 +9,29 @@ import lib.aws_handler as aws_handler
 import lib.spark_handler as spark_handler
 
 
+def install_dependencies():
+    _, emr, _ = aws_handler.get_boto_clients(utils.AWS_REGION, utils.config, emr_get=True)
+    cluster_id = Variable.get(utils.CLUSTER_ID)
+
+    step1_name = 'Upgrade numpy'
+    args1 = ['python3', '-m', 'pip', 'install', 'numpy', '--upgrade']
+    _ = spark_handler.run_cluster_commands(emr, cluster_id, step1_name, args1)
+
+
+    step2_name = 'Install other required python packages'
+    args2 = ['python3', '-m', 'pip', 'install', 'requests', 'pandas', 'pandas-datareader']
+    _ = spark_handler.run_cluster_commands(emr, cluster_id, step2_name, args2)
+
+
+
+
 def upload_assets_scritp_to_s3():
     s3 = aws_handler.get_s3_client(utils.AWS_REGION, utils.config)
-    s3_path = 'crypto_vs_econs/scripts/'
+    s3_path = 'scripts/'
     file_name = 'pull_assets_data.py'
 
     spark_handler.upload_file_to_s3(s3, utils.S3_BUCKET, s3_path, utils.SCRIPTS_PATH, file_name)
+
 
 
 
@@ -30,7 +47,7 @@ def upload_econs_script_to_s3(**kwargs):
             raise AirflowSkipException(f"No updates yet from last fetch ({prev_task_run}).")
 
     s3 = aws_handler.get_s3_client(utils.AWS_REGION, utils.config)
-    s3_path = 'crypto_vs_econs/scripts/'
+    s3_path = 'scripts/'
     file_name = 'pull_econs_data.py'
 
     spark_handler.upload_file_to_s3(s3, utils.S3_BUCKET, s3_path, utils.SCRIPTS_PATH, file_name)
@@ -43,7 +60,7 @@ def run_assets_script(**kwargs):
     _, emr, _ = aws_handler.get_boto_clients(utils.AWS_REGION, utils.config, emr_get=True)
     cluster_id = Variable.get(utils.CLUSTER_ID)
     step_name = "Pull assets data, transform and load to s3"
-    file = 'crypto_vs_econs/scripts/' +  'pull_assets_data.py'
+    file = 'scripts/' +  'pull_assets_data.py'
     script_location = 's3://' +  utils.S3_BUCKET + '/' + file
 
     aws_access_key_id = utils.config['AWS']['ACCESS_KEY_ID']
@@ -73,10 +90,13 @@ def run_assets_script(**kwargs):
         "output_bucket": "{output_bucket}"
     }}"""
 
-    spark_handler.submit_spark_job(emr, cluster_id, step_name, script_location, script_args)
 
-    # s3 = aws_handler.get_s3_client(utils.AWS_REGION, utils.config)
-    # spark_handler.delete_file_from_s3(s3, utils.S3_BUCKET, file)
+    args = ['spark-submit', '--deploy-mode', 'cluster', '--master', 'yarn', '--conf', 
+            'spark.yarn.submit.waitAppCompletion=true', script_location, script_args]
+    _ = spark_handler.run_cluster_commands(emr, cluster_id, step_name, args)
+
+    s3 = aws_handler.get_s3_client(utils.AWS_REGION, utils.config)
+    spark_handler.delete_file_from_s3(s3, utils.S3_BUCKET, file)
 
     Variable.set(utils.ASSETS_SCRIPT_DONE, True)
 
@@ -86,7 +106,7 @@ def run_econs_script(**kwargs):
     _, emr, _ = aws_handler.get_boto_clients(utils.AWS_REGION, utils.config, emr_get=True)
     cluster_id = Variable.get(utils.CLUSTER_ID)
     step_name = "Pull econs data, transform and load to s3"
-    file = 'crypto_vs_econs/scripts/' +  'pull_econs_data.py'
+    file = 'scripts/' +  'pull_econs_data.py'
     script_location = 's3://' + utils.S3_BUCKET + '/' + file
 
     aws_access_key_id = utils.config['AWS']['ACCESS_KEY_ID']
@@ -130,10 +150,12 @@ def run_econs_script(**kwargs):
         "output_bucket": "{output_bucket}"
     }}"""
 
-    spark_handler.submit_spark_job(emr, cluster_id, step_name, script_location, script_args)
+    args = ['spark-submit', '--deploy-mode', 'cluster', '--master', 'yarn', '--conf', 
+            'spark.yarn.submit.waitAppCompletion=true', script_location, script_args]
+    _ = spark_handler.run_cluster_commands(emr, cluster_id, step_name, args)
 
-    # s3 = aws_handler.get_s3_client(utils.AWS_REGION, utils.config)
-    # spark_handler.delete_file_from_s3(s3, utils.S3_BUCKET, file)
+    s3 = aws_handler.get_s3_client(utils.AWS_REGION, utils.config)
+    spark_handler.delete_file_from_s3(s3, utils.S3_BUCKET, file)
 
 
     Variable.set(utils.ECONS_SCRIPT_DONE, True)
@@ -149,7 +171,6 @@ def exit_from_dag():
     Variable.set(utils.DELETE_CLUSTER, cluster_id)
 
 
-
 with DAG("spark_dag", start_date=datetime.now()) as dag:
 
     initializing_task = VariableAvailSensor(
@@ -157,6 +178,12 @@ with DAG("spark_dag", start_date=datetime.now()) as dag:
         poke_interval=120,
         varnames=[utils.CLUSTER_ID],
         mode='reschedule'
+    )
+
+
+    install_dependencies_task = PythonOperator(
+        task_id="install_dependencies",
+        python_callable=install_dependencies
     )
 
 
@@ -201,7 +228,8 @@ with DAG("spark_dag", start_date=datetime.now()) as dag:
     )
 
 
-    initializing_task >> [upload_assets_scritp_to_s3_task, upload_econs_script_to_s3_task]
+    initializing_task >> install_dependencies_task
+    install_dependencies_task >> [upload_assets_scritp_to_s3_task, upload_econs_script_to_s3_task]
     upload_assets_scritp_to_s3_task >> run_assets_script_task
     upload_econs_script_to_s3_task >> run_econs_scripts_task
 

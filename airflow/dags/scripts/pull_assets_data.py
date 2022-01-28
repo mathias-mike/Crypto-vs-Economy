@@ -2,7 +2,10 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import udf, lit, max as s_max
 from pyspark.sql.functions import year, month, dayofyear, dayofweek, dayofmonth
 from pyspark.sql import types as T
+
 import requests
+import numpy
+import pandas
 import json
 import sys
 import os
@@ -261,8 +264,8 @@ def main():
 
     stock_meta, crypto_meta, stock_asset_values, crypto_asset_values = parse_data(data, spark)
 
-    stock_path = 'crypto_vs_econs/stocks/'
-    crypto_path = 'crypto_vs_econs/cryptos/'
+    stock_path = 'lake/stocks/'
+    crypto_path = 'lake/cryptos/'
 
     etl_stock(spark, stock_meta, stock_asset_values, companies, output_bucket, stock_path)
 

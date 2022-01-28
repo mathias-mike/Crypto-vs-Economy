@@ -1,6 +1,8 @@
 from pyspark.sql import SparkSession
 from pyspark.sql import types as T
 from pyspark.sql.functions import max as s_max
+
+import numpy
 from pandas_datareader import wb
 import pandas as pd
 import json
@@ -187,7 +189,7 @@ def main():
     
     econs_indicator = download_data(spark, indicators, countries, start_year, end_year)
 
-    base_path = 'crypto_vs_econs/economics/'
+    base_path = 'lake/economics/'
 
     indicator_table = etl_indicator(spark, econs_indicator, output_bucket, base_path)
 

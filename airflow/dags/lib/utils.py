@@ -10,6 +10,7 @@ S3_BUCKET = config['AWS']['S3_BUCKET']  # Just the <bucket-name>
 SCRIPTS_PATH = airflow_dir + '/dags/scripts/'
 
 CLUSTER_NAME = 'crypto_economics'
+CLUSTER_LOG_URI = 's3://'+S3_BUCKET+'/logs/'
 AWS_REGION = 'us-east-1'
 CORE_INSTANCE_COUNT = 2
 MASTER_INSTANCE_TYPE = 'c5d.2xlarge'

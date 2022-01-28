@@ -181,7 +181,7 @@ def get_cluster_state(emr, cluster_id):
 
 
 
-def create_emr_cluster(emr, name,
+def create_emr_cluster(emr, name, log_uri,
         release_label='emr-5.34.0',
         master_instance_type=None,
         slave_instance_type=None,
@@ -191,8 +191,7 @@ def create_emr_cluster(emr, name,
         keypair_name=None,
         subnet_id=None,
         job_flow_role_name='EMR_EC2_DefaultRole',
-        service_role_name='EMR_DefaultRole',
-        bootstrap_script_path=None):
+        service_role_name='EMR_DefaultRole'):
 
     clusters = emr.list_clusters(ClusterStates=['STARTING', 'RUNNING', 'WAITING', 'BOOTSTRAPPING'])
     active_clusters = [cluster for cluster in clusters['Clusters'] if cluster['Name']==name]
@@ -209,6 +208,7 @@ def create_emr_cluster(emr, name,
 
                 cluster_response = emr.run_job_flow(
                     Name=name,
+                    LogUri=log_uri,
                     ReleaseLabel=release_label,
                     Instances={
                         'InstanceGroups': [
@@ -239,16 +239,7 @@ def create_emr_cluster(emr, name,
                     Applications=[
                         {'Name': 'hadoop'},
                         {'Name': 'spark'},
-                        {'Name': 'hive'},
                         {'Name': 'zeppelin'}
-                    ],
-                    BootstrapActions=[
-                        {
-                            'Name': 'Dependency Installer',
-                            'ScriptBootstrapAction': {
-                                'Path': bootstrap_script_path
-                            }
-                        },
                     ],
                 )
 

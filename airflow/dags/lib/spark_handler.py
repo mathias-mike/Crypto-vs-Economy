@@ -10,33 +10,6 @@ def upload_file_to_s3(s3, bucket, s3_path, file_path, file_name):
     s3.upload_file(file_location, bucket, key)
 
 
-def submit_spark_job(emr, cluster_id, step_name, script_location, script_args):
-    response = emr.add_job_flow_steps(
-                    JobFlowId = cluster_id,
-                    Steps=[
-                        {
-                            'Name': step_name,
-                            'ActionOnFailure': 'CONTINUE',
-                            'HadoopJarStep': {
-                                'Jar': 'command-runner.jar',
-                                'Args': [
-                                    'spark-submit',
-                                    '--deploy-mode',
-                                    'cluster',
-                                    '--master',
-                                    'yarn',
-                                    '--conf',
-                                    'spark.yarn.submit.waitAppCompletion=true',
-                                    script_location,
-                                    script_args
-                                ]
-                            }
-                        },
-                    ]
-                )
-
-    return response['StepIds'][0]
-
 
 def get_step_status(emr, cluster_id, step_id):
     response = emr.describe_step(
@@ -44,7 +17,8 @@ def get_step_status(emr, cluster_id, step_id):
         StepId=step_id
     )
 
-    return response['Step']['Status']['State']
+    return response['Step']['Status']['State']     # 'PENDING'|'CANCEL_PENDING'|'RUNNING'|'COMPLETED'|'CANCELLED'|'FAILED'|'INTERRUPTED'
+
 
 
 def wait_on_step(emr, cluster_id, step_id):
@@ -55,7 +29,30 @@ def wait_on_step(emr, cluster_id, step_id):
         current_state = get_step_status(emr, cluster_id, step_id)
 
         if current_state in ['CANCELLED','FAILED','INTERRUPTED']:
-            raise Exception(f'Step run failed with state {current_state}')
+            raise Exception(f'Step run failed with state: {current_state}')
+
+
+
+def run_cluster_commands(emr, cluster_id, step_name, args):
+    response = emr.add_job_flow_steps(
+                    JobFlowId = cluster_id,
+                    Steps=[
+                        {
+                            'Name': step_name,
+                            'ActionOnFailure': 'CONTINUE',
+                            'HadoopJarStep': {
+                                'Jar': 'command-runner.jar',
+                                'Args': args
+                            }
+                        },
+                    ]
+                )
+
+    step_id = response['StepIds'][0]
+
+    wait_on_step(emr, cluster_id, step_id)
+
+    return step_id
 
 
 
