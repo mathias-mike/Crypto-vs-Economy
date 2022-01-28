@@ -21,11 +21,11 @@ def submit_spark_job(emr, cluster_id, step_name, script_location, script_args):
                                 'Jar': 'command-runner.jar',
                                 'Args': [
                                     'spark-submit',
-                                    '–deploy-mode',
+                                    '--deploy-mode',
                                     'cluster',
-                                    '–master',
+                                    '--master',
                                     'yarn',
-                                    '–conf',
+                                    '--conf',
                                     'spark.yarn.submit.waitAppCompletion=true',
                                     script_location,
                                     script_args

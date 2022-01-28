@@ -6,7 +6,7 @@ config = configparser.ConfigParser()
 airflow_dir = os.path.split(airflow_config['core']['dags_folder'])[0]
 config.read(f'{airflow_dir}/pipeline.cfg')
 
-S3_BUCKET = config['AWS']['S3_BUCKET']  # s3://<bucket-name>/
+S3_BUCKET = config['AWS']['S3_BUCKET']  # Just the <bucket-name>
 SCRIPTS_PATH = airflow_dir + '/dags/scripts/'
 
 CLUSTER_NAME = 'crypto_economics'

@@ -59,7 +59,7 @@ def run_assets_script(**kwargs):
         "AMZN": "Amazon.com, Inc."
     }'''
     interval = "1h"
-    output_bucket = utils.S3_BUCKET # Just the bucket s3 url
+    output_bucket = utils.S3_BUCKET # Just the bucket_name
 
     script_args = f"""{{
         "aws_access_key_id": "{aws_access_key_id}",
@@ -118,7 +118,7 @@ def run_econs_script(**kwargs):
     year = datetime.fromisoformat(kwargs['ds']).year - 1 # As data for current year might not be filled in yet
     start_year = year
     end_year = year
-    output_bucket = utils.S3_BUCKET # Just the bucket s3 url
+    output_bucket = utils.S3_BUCKET # Just the bucket_name
 
     script_args = f"""{{
         "aws_access_key_id": "{aws_access_key_id}",

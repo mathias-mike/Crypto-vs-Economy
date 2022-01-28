@@ -245,10 +245,10 @@ def main():
     _12data_apikey = script_args['_12data_apikey']
     start_date = script_args['start_date']
     end_date = script_args['end_date']
-    symbols = ['symbols']
-    companies = ['companies']
-    interval = ['interval']
-    output_bucket = ['output_bucket']
+    symbols = script_args['symbols']
+    companies = script_args['companies']
+    interval = script_args['interval']
+    output_bucket = 's3://' + script_args['output_bucket'] + '/' 
 
 
     spark = get_spark_session()

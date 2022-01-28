@@ -169,17 +169,19 @@ def main():
     if len(sys.argv) < 8:
         raise Exception('Not enough arguement for spark job!')
 
-    aws_access_key_id = sys.argv[1]
-    aws_secret_access_key = sys.argv[2]
+    script_args = json.loads(sys.argv[1])
+
+    aws_access_key_id = script_args['aws_access_key_id']
+    aws_secret_access_key = script_args['aws_secret_access_key']
 
     os.environ['AWS_ACCESS_KEY_ID'] = aws_access_key_id
     os.environ['AWS_SECRET_ACCESS_KEY'] = aws_secret_access_key
     
-    indicators = json.loads(sys.argv[3])
-    countries = json.loads(sys.argv[4])
-    start_year = int(sys.argv[5])
-    end_year = int(sys.argv[6])
-    output_bucket = sys.argv[7] # Just the bucket s3 url
+    indicators = script_args['indicators']
+    countries = script_args['countries']
+    start_year = script_args['start_year']
+    end_year = script_args['end_year']
+    output_bucket = 's3://' + script_args['output_bucket'] + '/' 
 
     spark = get_spark_session()
     
