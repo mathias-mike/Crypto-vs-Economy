@@ -168,7 +168,7 @@ def etl_econs_data(econs_indicator, output_bucket, base_path, indicator_table, c
 
         
 def main():
-    if len(sys.argv) < 8:
+    if len(sys.argv) < 2:
         raise Exception('Not enough arguement for spark job!')
 
     script_args = json.loads(sys.argv[1])
@@ -183,7 +183,7 @@ def main():
     countries = script_args['countries']
     start_year = script_args['start_year']
     end_year = script_args['end_year']
-    output_bucket = 's3://' + script_args['output_bucket'] + '/' 
+    output_bucket = script_args['output_bucket']
 
     spark = get_spark_session()
     

@@ -127,7 +127,6 @@ def etl_stock(spark, stock_meta, stock_asset_values, companies, output_bucket, s
                 .save(output_bucket + stock_path + meta_path, mode='overwrite')
         
 
-
         # Stock data
         join_cols = [stock_asset_values.asset == stock_meta.symbol]
         stock_asset_values = stock_asset_values.join(stock_meta, on=join_cols, how='inner')
@@ -251,7 +250,7 @@ def main():
     symbols = script_args['symbols']
     companies = script_args['companies']
     interval = script_args['interval']
-    output_bucket = 's3://' + script_args['output_bucket'] + '/' 
+    output_bucket = script_args['output_bucket']
 
 
     spark = get_spark_session()

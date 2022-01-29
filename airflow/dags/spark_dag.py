@@ -8,6 +8,8 @@ import lib.utils as utils
 import lib.aws_handler as aws_handler
 import lib.spark_handler as spark_handler
 
+import json
+
 
 def install_dependencies():
     _, emr, _ = aws_handler.get_boto_clients(utils.AWS_REGION, utils.config, emr_get=True)
@@ -69,27 +71,27 @@ def run_assets_script(**kwargs):
     start_date = str(datetime.fromisoformat(kwargs['ds']) - timedelta(days=1))
     end_date = str(datetime.fromisoformat(kwargs['ds']))
     symbols = 'AAPL,TSLA,GOOGL,AMZN,BTC/USD,ETH/USD,BNB/USD,LTC/USD'
-    companies = '''{
+    companies = {
         "AAPL":"Apple Inc.",
         "TSLA":"Tesla, Inc.",
         "GOOGL":"Alphabet Inc.",
         "AMZN": "Amazon.com, Inc."
-    }'''
+    }
     interval = "1h"
-    output_bucket = utils.S3_BUCKET # Just the bucket_name
+    output_bucket = 's3://' + utils.S3_BUCKET + '/'
 
-    script_args = f"""{{
-        "aws_access_key_id": "{aws_access_key_id}",
-        "aws_secret_access_key": "{aws_secret_access_key}",
-        "_12data_apikey": "{_12data_apikey}",
-        "start_date": "{start_date}",
-        "end_date": "{end_date}",
-        "symbols": "{symbols}",
-        "companies": {companies},
-        "interval": "{interval}",
-        "output_bucket": "{output_bucket}"
-    }}"""
-
+    script_args = {}
+    script_args['aws_access_key_id'] = aws_access_key_id
+    script_args['aws_secret_access_key'] = aws_secret_access_key
+    script_args['_12data_apikey'] = _12data_apikey
+    script_args['start_date'] = start_date
+    script_args['end_date'] = end_date
+    script_args['symbols'] = symbols
+    script_args['companies'] = companies
+    script_args['interval'] = interval
+    script_args['output_bucket'] = output_bucket
+    script_args = json.dumps(script_args)
+    
 
     args = ['spark-submit', '--deploy-mode', 'cluster', '--master', 'yarn', '--conf', 
             'spark.yarn.submit.waitAppCompletion=true', script_location, script_args]
@@ -111,10 +113,10 @@ def run_econs_script(**kwargs):
 
     aws_access_key_id = utils.config['AWS']['ACCESS_KEY_ID']
     aws_secret_access_key = utils.config['AWS']['SECRET_ACCESS_KEY']
-    indicators = '''[
+    indicators = [
         {
             "symbol":"SL.UEM.TOTL.NE.ZS",
-            "indicator":"Unemployment, total (% \of total labor force) (national estimate)"
+            "indicator":"Unemployment, total (% of total labor force) (national estimate)"
         },
         {
             "symbol":"NY.GDP.MKTP.CD",
@@ -131,24 +133,24 @@ def run_econs_script(**kwargs):
         {
             "symbol":"SP.POP.TOTL",
             "indicator":"Population, total"
-        },
-    ]'''
-    countries = '["US", "NG", "UK", "CA", "CN"]'
+        }
+    ]
+    countries = ["US", "NG", "CA", "CN"]
 
     year = datetime.fromisoformat(kwargs['ds']).year - 1 # As data for current year might not be filled in yet
     start_year = year
     end_year = year
-    output_bucket = utils.S3_BUCKET # Just the bucket_name
+    output_bucket = 's3://' + utils.S3_BUCKET + '/'
 
-    script_args = f"""{{
-        "aws_access_key_id": "{aws_access_key_id}",
-        "aws_secret_access_key": "{aws_secret_access_key}",
-        "indicators": "{indicators}",
-        "countries": "{countries}",
-        "start_year": {start_year},
-        "end_year": {end_year},
-        "output_bucket": "{output_bucket}"
-    }}"""
+    script_args = {}
+    script_args['aws_access_key_id'] = aws_access_key_id
+    script_args['aws_secret_access_key'] = aws_secret_access_key
+    script_args['indicators'] = indicators
+    script_args['countries'] = countries
+    script_args['start_year'] = start_year
+    script_args['end_year'] = end_year
+    script_args['output_bucket'] = output_bucket
+    script_args = json.dumps(script_args)
 
     args = ['spark-submit', '--deploy-mode', 'cluster', '--master', 'yarn', '--conf', 
             'spark.yarn.submit.waitAppCompletion=true', script_location, script_args]

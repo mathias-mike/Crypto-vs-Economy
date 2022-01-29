@@ -6,7 +6,6 @@ from airflow.models import Variable
 
 import lib.utils as utils
 import lib.aws_handler as aws_handler
-import lib.spark_handler as spark_handler
 
 
 def setup_cluster_vars():
