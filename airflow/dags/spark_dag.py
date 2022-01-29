@@ -45,11 +45,11 @@ def upload_econs_script_to_s3(**kwargs):
         prev_task_run = datetime.fromisoformat(econs_last_run)
         current_dag_run_date = datetime.fromisoformat(kwargs['ds'])
 
+
         if prev_task_run < current_dag_run_date - timedelta(days=365):
-
             Variable.set(utils.ECONS_SCRIPT_DONE, True)
-
             raise AirflowSkipException(f"No updates yet from last fetch ({prev_task_run}).")
+            
 
     s3 = aws_handler.get_s3_client(utils.AWS_REGION, utils.config)
     s3_path = 'scripts/'
