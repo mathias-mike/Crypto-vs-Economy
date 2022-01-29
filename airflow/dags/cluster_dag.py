@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from VariableAvailSensor import VariableAvailSensor
@@ -97,8 +97,22 @@ def del_roles():
     )
 
 
+default_args = {
+    'owner': 'mike',
+    'depends_on_past': False,
+    'retries': 3,
+    'retry_delay': timedelta(minutes=5),
+    'email_on_retry': False,
+    'start_date': datetime(2016, 1, 1),
+}
 
-with DAG("cluster_dag", start_date=datetime.now()) as dag:
+
+with DAG("cluster_dag",
+            default_args=default_args,
+            catchup=False,
+            description='Setup and run AWS EMR cluster for spark Job',
+            schedule_interval='@daily') as dag:
+
     setup_cluster_task = PythonOperator(
         task_id="setup_cluster_task",
         python_callable=setup_cluster_vars

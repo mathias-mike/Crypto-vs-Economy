@@ -38,10 +38,13 @@ def upload_assets_scritp_to_s3():
 
 
 def upload_econs_script_to_s3(**kwargs):
-    prev_task_run = datetime.fromisoformat(Variable.get(utils.ECONS_SCRIPT_LAST_RUN, default_var=None))
-    current_dag_run_date = datetime.fromisoformat(kwargs['ds'])
+    econs_last_run = Variable.get(utils.ECONS_SCRIPT_LAST_RUN, default_var=None)
     
-    if prev_task_run != None:
+    if econs_last_run != None:
+        
+        prev_task_run = datetime.fromisoformat(econs_last_run)
+        current_dag_run_date = datetime.fromisoformat(kwargs['ds'])
+
         if prev_task_run < current_dag_run_date - timedelta(days=365):
 
             Variable.set(utils.ECONS_SCRIPT_DONE, True)
@@ -93,8 +96,7 @@ def run_assets_script(**kwargs):
     script_args = json.dumps(script_args)
     
 
-    args = ['spark-submit', '--deploy-mode', 'cluster', '--master', 'yarn', '--conf', 
-            'spark.yarn.submit.waitAppCompletion=true', script_location, script_args]
+    args = ['spark-submit', script_location, script_args]
     _ = spark_handler.run_cluster_commands(emr, cluster_id, step_name, args)
 
     s3 = aws_handler.get_s3_client(utils.AWS_REGION, utils.config)
@@ -152,8 +154,7 @@ def run_econs_script(**kwargs):
     script_args['output_bucket'] = output_bucket
     script_args = json.dumps(script_args)
 
-    args = ['spark-submit', '--deploy-mode', 'cluster', '--master', 'yarn', '--conf', 
-            'spark.yarn.submit.waitAppCompletion=true', script_location, script_args]
+    args = ['spark-submit', script_location, script_args]
     _ = spark_handler.run_cluster_commands(emr, cluster_id, step_name, args)
 
     s3 = aws_handler.get_s3_client(utils.AWS_REGION, utils.config)
@@ -173,7 +174,21 @@ def exit_from_dag():
     Variable.set(utils.DELETE_CLUSTER, cluster_id)
 
 
-with DAG("spark_dag", start_date=datetime.now()) as dag:
+default_args = {
+    'owner': 'mike',
+    'depends_on_past': False,
+    'retries': 3,
+    'retry_delay': timedelta(minutes=5),
+    'email_on_retry': False,
+    'start_date': datetime(2016, 1, 1),
+}
+
+
+with DAG("spark_dag", 
+            default_args=default_args,
+            catchup=False,
+            description='Pull assets and econs data and save in s3 data lake',
+            schedule_interval='@daily') as dag:
 
     initializing_task = VariableAvailSensor(
         task_id="initializing",

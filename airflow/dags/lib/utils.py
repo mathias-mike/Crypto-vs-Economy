@@ -12,9 +12,9 @@ SCRIPTS_PATH = airflow_dir + '/dags/scripts/'
 CLUSTER_NAME = 'crypto_economics'
 CLUSTER_LOG_URI = 's3://'+S3_BUCKET+'/logs/'
 AWS_REGION = 'us-east-1'
-# CORE_INSTANCE_COUNT = 2
-# MASTER_INSTANCE_TYPE = 'c5d.2xlarge'
-# CORE_INSTANCE_TYPE = 'm5d.2xlarge'
+CORE_INSTANCE_COUNT = 1
+MASTER_INSTANCE_TYPE = 'd2.xlarge'
+CORE_INSTANCE_TYPE = 'd2.xlarge'
 RELEASE_LABEL = 'emr-5.34.0'
 
 CLUSTER_ID = 'cluster_id'
@@ -56,11 +56,6 @@ SERVICE_ROLE_POLICY = """{
 }"""
 
 SERVICE_PERMISSION_POLICY_ARN = "arn:aws:iam::aws:policy/service-role/AmazonElasticMapReduceRole"
-
-
-CORE_INSTANCE_COUNT = 1
-MASTER_INSTANCE_TYPE = 'd2.xlarge'
-CORE_INSTANCE_TYPE = 'd2.xlarge'
 
 
 
