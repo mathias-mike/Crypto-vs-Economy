@@ -13,12 +13,16 @@ To demonstrate that the pipeline works, we only use a small subset of the data c
 2. ETH,
 3. BNB,
 4. LTC,
+
 4 stocks;
+
 1. AAPL: Apple Inc.,
 2. TSLA: Tesla, Inc.,
 3. GOOGL: Alphabet Inc.,
 4. AMZN: Amazon.com, Inc.,
+
 and 5 other economic indicators;
+
 1. Unemployment, total (% of total labor force) (national estimate)
 2. GDP (current US$)
 3. Official exchange rate (LCU per US$, period average)
