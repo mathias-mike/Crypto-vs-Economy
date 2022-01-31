@@ -90,7 +90,6 @@ Actual economic data
 * `value` (String): Value of data point
 
 
-
 ## Steps 
 The pipeline consists of the following tasks;
 1. `cluster_dag` this configure and launches as AWS EMR cluster then waits for the task to complete.
@@ -104,6 +103,20 @@ The pipeline consists of the following tasks;
     * Countries and indticators are unique,
     * No null values exist in the econs data
 7. Once all of this checks are passed, the dag run completes succesfully
+
+
+## Analysis Example
+As an example to demonstrate how the data can be used we analyze the relationship between btc price and tesla stock price over a period of 1 year from 	2021-02-01 (Y-m-d) to 2022-01-31 (Y-m-d).
+
+The image below show a scatter plot of the price of btc against the price of tesla stock of the given time period;
+![btc vs. tesla scatter plot](https://raw.githubusercontent.com/mathias-mike/Crypto-vs-Economy/master/media/btc_vs_tsla.png)
+
+We can notice a slight correlation between the two prices.
+
+With `statsmodels.api`, we can view the `R-Squared` value and the `p-value` of the relationship.
+![btc vs. tesla regression](https://raw.githubusercontent.com/mathias-mike/Crypto-vs-Economy/master/media/btc_tesla_statsmodel.png)
+
+The `p-value` show that the price of tesla stock is statistically significant in predicting the price of btc, however, the `R-squared` value shows only a slight correlation between the two.
 
 
 ## How to run
@@ -134,5 +147,12 @@ We could move our data into a warehouse (Redshift with it's auto-scaling capabil
 
 
 ## Choice of technology
+1. **Apache Airflow**: is an easy to setup scheduler application. Since we want to build a pipeline that would run periodically to fetch data, airflow is the best tool for the Job.
+2. **Apache Spark**: is a tool in the big data ecosystem used to process large amount of data. Making use of a cluster of compute power and it's lazy evaluation design makes it the best tool to use as we have millions of data points to process.
+3. **AWS EMR**: make it easy to setup a spark cluster without having to do all the work required.
+4. **AWS S3**: is an easy to scale cloud storage. This provides us with enough space to store our data as well as making our data available in the cloud.
+
+
+
 
 
