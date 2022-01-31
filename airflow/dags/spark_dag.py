@@ -198,6 +198,35 @@ def run_econs_script(**kwargs):
 
 
 
+def quality_check():
+    s3 = aws_handler.get_s3_client(utils.AWS_REGION, utils.config)
+    file_name = 'quality_checks.py'
+    spark_handler.upload_file_to_s3(s3, utils.S3_BUCKET, utils.S3_SCRIPT_PATH, utils.LOCAL_SCRIPTS_PATH, file_name)
+
+
+    _, emr, _ = aws_handler.get_boto_clients(utils.AWS_REGION, utils.config, emr_get=True)
+    cluster_id = Variable.get(utils.CLUSTER_ID)
+    step_name = "Check quality of data"
+    file = utils.S3_SCRIPT_PATH +  file_name
+    script_location = 's3://' +  utils.S3_BUCKET + '/' + file
+
+    aws_access_key_id = utils.config['AWS']['ACCESS_KEY_ID']
+    aws_secret_access_key = utils.config['AWS']['SECRET_ACCESS_KEY']
+
+    script_args = {}
+    script_args['aws_access_key_id'] = aws_access_key_id
+    script_args['aws_secret_access_key'] = aws_secret_access_key
+    script_args['data_lake_location'] = utils.S3_OUTPUT_PATH
+    script_args = json.dumps(script_args)
+    
+
+    args = ['spark-submit', script_location, script_args]
+    _ = spark_handler.run_cluster_commands(emr, cluster_id, step_name, args)
+
+    s3 = aws_handler.get_s3_client(utils.AWS_REGION, utils.config)
+    spark_handler.delete_file_from_s3(s3, utils.S3_BUCKET, file)
+
+
 
 def exit_from_dag():
     cluster_id = Variable.get(utils.CLUSTER_ID)

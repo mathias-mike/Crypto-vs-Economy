@@ -207,10 +207,4 @@ if __name__ == "__main__":
 
 
 
-
-
-
-
-# spark-submit pull_econs_data.py '[{"symbol":"SL.UEM.TOTL.NE.ZS","indicator":"Unemployment"},{"symbol":"NY.GDP.MKTP.CD","indicator":"GDP"}]' '["US","NG"]' 2005 2021
-
     
