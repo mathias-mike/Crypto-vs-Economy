@@ -109,14 +109,15 @@ The pipeline consists of the following tasks;
 As an example to demonstrate how the data can be used we analyze the relationship between btc price and tesla stock price over a period of 1 year from 	2021-02-01 (Y-m-d) to 2022-01-31 (Y-m-d).
 
 The image below show a scatter plot of the price of btc against the price of tesla stock of the given time period;
+
 ![btc vs. tesla scatter plot](https://raw.githubusercontent.com/mathias-mike/Crypto-vs-Economy/master/media/btc_vs_tsla.png)
 
-We can notice a slight correlation between the two prices.
-
+We can notice a slight correlation between the two prices.\
 With `statsmodels.api`, we can view the `R-Squared` value and the `p-value` of the relationship.
+
 ![btc vs. tesla regression](https://raw.githubusercontent.com/mathias-mike/Crypto-vs-Economy/master/media/btc_tesla_statsmodel.png)
 
-The `p-value` show that the price of tesla stock is statistically significant in predicting the price of btc, however, the `R-squared` value shows only a slight correlation between the two.
+The `p-value` show that the price of tesla stock is statistically significant in predicting the price of btc with an alpha level of 0.05, however, the `R-squared` value shows only a slight correlation between the two.
 
 
 ## How to run
