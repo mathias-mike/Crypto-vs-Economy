@@ -128,7 +128,14 @@ Once you have all of this, your `pipeline.cfg` file should look like this;
 With this, you can just run your `cluster_dag` and `spark_dag` from the airflow UI.
 
 
+## Possible cases
+### 1. Data was increased by 100x
+In this case, we could increase emr cluster to allow for more parrallel pull of the data.
 
+### 2. The pipelines needs to run on a daily basis by 7 am every day
+For this case we simply need to set our `schedule_interval` to `@daily`. Now if the data needs to be run at a specific time period, then we can set a Service Level Agreement (SLA) to allow us monitor our DAGs abit more thoroughly.
 
+### 3. The database needed to be accessed by 100+ people.
+We could move our data into a warehouse (Redshift with it's auto-scaling capabilities and columnar storage) which can be queried with SQL.
 
 

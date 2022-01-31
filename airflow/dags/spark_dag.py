@@ -286,6 +286,11 @@ with DAG("spark_dag",
         mode='reschedule'
     )
 
+    quality_check_task = PythonOperator(
+        task_id='quality_check',
+        python_callable=quality_check
+    )
+
     finish_task = PythonOperator(
         task_id="finish_task",
         python_callable=exit_from_dag
@@ -298,7 +303,8 @@ with DAG("spark_dag",
     upload_stock_script_to_s3_task >> run_stock_script_task
     upload_econs_script_to_s3_task >> run_econs_scripts_task
 
-    wait_for_spark_complete_task >> finish_task
+    wait_for_spark_complete_task >> quality_check_task
+    quality_check_task >> finish_task
 
 
 
