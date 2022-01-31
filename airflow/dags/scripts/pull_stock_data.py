@@ -22,7 +22,7 @@ def download_data(base_url, endpoint, apikey_append):
     response = requests.get(base_url + endpoint + apikey_append)
 
     if response.status_code != 200:
-        raise Exception(f'Request error:\n{response.text}')
+        raise Exception(f'Request error:\n{response}')
     else:
         return response.json()
 

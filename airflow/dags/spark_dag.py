@@ -1,9 +1,9 @@
 from datetime import datetime, timedelta
-from turtle import pu
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from VariableAvailSensor import VariableAvailSensor
+from airflow.exceptions import AirflowSkipException
 from airflow.models import Variable
+from VariableAvailSensor import VariableAvailSensor
 
 import lib.utils as utils
 import lib.aws_handler as aws_handler
@@ -44,8 +44,12 @@ def run_crypto_script(**kwargs):
     aws_access_key_id = utils.config['AWS']['ACCESS_KEY_ID']
     aws_secret_access_key = utils.config['AWS']['SECRET_ACCESS_KEY']
     coinapi_api_key = utils.config['COIN_API']['API_KEY']
-    start_date = str(datetime.fromisoformat(kwargs['ds']) - timedelta(days=1))
-    end_date = str(datetime.fromisoformat(kwargs['ds']))
+
+    start_date = datetime.fromisoformat(kwargs['ds']) - timedelta(days=1)
+    end_date = datetime.fromisoformat(kwargs['ds'])
+    start_date = str(start_date.date())
+    end_date = str(end_date.date())
+
     symbols = ['COINBASE_SPOT_BTC_USD', 'COINBASE_SPOT_ETH_USD', 'COINBASE_SPOT_LTC_USD']
     period = '1HRS'
 
@@ -96,8 +100,12 @@ def run_stock_script(**kwargs):
     aws_access_key_id = utils.config['AWS']['ACCESS_KEY_ID']
     aws_secret_access_key = utils.config['AWS']['SECRET_ACCESS_KEY']
     _12data_apikey = utils.config['TWELVE_DATA']['API_KEY']
-    start_date = str(datetime.fromisoformat(kwargs['ds']) - timedelta(days=1))
-    end_date = str(datetime.fromisoformat(kwargs['ds']))
+
+    start_date = datetime.fromisoformat(kwargs['ds']) - timedelta(days=1)
+    end_date = datetime.fromisoformat(kwargs['ds'])
+    start_date = str(start_date.date())
+    end_date = str(end_date.date())
+
     symbols = 'TSLA,GOOGL,AMZN'
     companies = {"TSLA":"Tesla, Inc.", "GOOGL":"Alphabet Inc.", "AMZN": "Amazon.com, Inc."}
     interval = "1h"
@@ -210,12 +218,9 @@ def quality_check():
     file = utils.S3_SCRIPT_PATH +  file_name
     script_location = 's3://' +  utils.S3_BUCKET + '/' + file
 
-    aws_access_key_id = utils.config['AWS']['ACCESS_KEY_ID']
-    aws_secret_access_key = utils.config['AWS']['SECRET_ACCESS_KEY']
-
     script_args = {}
-    script_args['aws_access_key_id'] = aws_access_key_id
-    script_args['aws_secret_access_key'] = aws_secret_access_key
+    script_args['aws_access_key_id'] = utils.config['AWS']['ACCESS_KEY_ID']
+    script_args['aws_secret_access_key'] = utils.config['AWS']['SECRET_ACCESS_KEY']
     script_args['data_lake_location'] = utils.S3_OUTPUT_PATH
     script_args = json.dumps(script_args)
     
@@ -310,8 +315,8 @@ with DAG("spark_dag",
     wait_for_spark_complete_task = VariableAvailSensor(
         task_id="wait_for_spark_complete",
         poke_interval=120,
-        timeout = 600,
-        varnames=[utils.ASSETS_SCRIPT_DONE, utils.ECONS_SCRIPT_DONE],
+        timeout =2400,
+        varnames=[utils.CRYPTO_SCRIPT_DONE, utils.STOCK_SCRIPT_DONE, utils.ECONS_SCRIPT_DONE],
         mode='reschedule'
     )
 
@@ -327,7 +332,11 @@ with DAG("spark_dag",
 
 
     initializing_task >> install_dependencies_task
-    install_dependencies_task >> [upload_crypto_script_to_s3_task, upload_stock_script_to_s3_task, upload_econs_script_to_s3_task]
+
+    install_dependencies_task >> upload_crypto_script_to_s3_task
+    install_dependencies_task >> upload_stock_script_to_s3_task
+    install_dependencies_task >> upload_econs_script_to_s3_task
+
     upload_crypto_script_to_s3_task >> run_crypto_script_task
     upload_stock_script_to_s3_task >> run_stock_script_task
     upload_econs_script_to_s3_task >> run_econs_scripts_task

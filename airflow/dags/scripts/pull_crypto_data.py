@@ -26,7 +26,7 @@ def download_data(base_url, endpoint, headers, symbols):
         res = requests.get(query_url, headers=headers)
 
         if res.status_code != 200:
-            raise Exception(f'Request error:\n{response.text}')
+            raise Exception(f'Request error:\n{response}')
         
         response[symbol] = res.json()
 
@@ -48,7 +48,7 @@ def parse_data(data, spark):
             meta['currency_base'] = split_symbol[2]
             meta['currency_quote'] = split_symbol[3]
 
-            meta_spark = spark.createDataFrame(meta)
+            meta_spark = spark.createDataFrame([meta])
             if meta_data == None:
                 meta_data = meta_spark
             else:

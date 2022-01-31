@@ -62,7 +62,7 @@ def delete_file_from_s3(s3, bucket, file):
         Key=file
     )
 
-    return response['DeleteMarker']
+    return response
 
     
 

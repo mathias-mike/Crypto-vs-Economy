@@ -15,7 +15,8 @@ def setup_cluster_vars():
     Variable.delete(utils.SLAVE_SG_ID)
     Variable.delete(utils.KEYPAIR_NAME)
     Variable.delete(utils.DELETE_CLUSTER)
-    Variable.delete(utils.ASSETS_SCRIPT_DONE)
+    Variable.delete(utils.CRYPTO_SCRIPT_DONE)
+    Variable.delete(utils.STOCK_SCRIPT_DONE)
     Variable.delete(utils.ECONS_SCRIPT_DONE)
 
     ec2, _, iam = aws_handler.get_boto_clients(utils.AWS_REGION, utils.config, ec2_get=True, iam_get=True)

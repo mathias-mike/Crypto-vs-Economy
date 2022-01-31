@@ -133,3 +133,6 @@ For this case we simply need to set our `schedule_interval` to `@daily`. Now if 
 We could move our data into a warehouse (Redshift with it's auto-scaling capabilities and columnar storage) which can be queried with SQL.
 
 
+## Choice of technology
+
+
