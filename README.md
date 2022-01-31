@@ -8,31 +8,26 @@ The data pipeline is built on Apache Airflow, with Apache Spark to pull the data
 
 As of the time of this writing (2022-01-30), there are over 10,000 crypto currencies currently in existence and new once springing up each day. There are over 2,000 of them that have been in existance since 2018 and with an hourly pull of over 4 years of the data with no weekend breaks (a complete 365 days data availability) gives us over 70 million data points to process at max (24 * 365 * 4 * 2000).
 
-To demonstrate that the pipeline works, we only use a small subset of the data consisting of 4 cryptocurrencies;
+To demonstrate that the pipeline works, we only use a small subset of the data consisting of 3 cryptocurrencies;
 1. BTC,
 2. ETH,
-3. BNB,
-4. LTC,
+3. LTC,
 
-4 stocks;
+3 stocks;
 
-1. AAPL: Apple Inc.,
-2. TSLA: Tesla, Inc.,
-3. GOOGL: Alphabet Inc.,
-4. AMZN: Amazon.com, Inc.,
+1. TSLA: Tesla, Inc.,
+2. GOOGL: Alphabet Inc.,
+3. AMZN: Amazon.com, Inc.,
 
-and 5 other economic indicators;
+and 4 other economic indicators;
 
 1. Unemployment, total (% of total labor force) (national estimate)
 2. GDP (current US$)
 3. Official exchange rate (LCU per US$, period average)
 4. Real interest rate (%)
-5. Population, total
 
 The cryptocurrencies have data points for each day, the stock data have data points for each working day while the other economic indices are updated anually. For this reason the pipeline is built to fetch each of this data according to their respective update frequency.
 
-
-## Analysis Example
 
 ## Steps 
 The pipeline consists of the following tasks;
@@ -44,6 +39,78 @@ The pipeline consists of the following tasks;
 3. The `pull_assets_data.py` pulls both cryptocurrency data from different exchanges using [coinapi.io api](https://www.coinapi.io/), also pulls stock data from [twelvedata api](https://twelvedata.com/) both on an hourly interval.\
 It performs ETL on the data and saves it in S3 in a parquet format.
 4. The `pull_econs_data,py` pulls data on economic indicators from the [world bank](https://data.worldbank.org/indicator/) and performs cleaning and ETL on the data and stores it in S3.
+
+
+## Data model
+The model choosen for the project is a simple snowflake schema with just one level hierarchy
+### Fact Table
+#### crypto_data
+Crypto time series data
+* `crypto_id` (Integer): Value used to identify crypto assets 
+* `start_time` (Timestamp): Period starting time
+* `open` (Double): First trade price inside period range
+* `high` (Double): Highest traded price inside period range
+* `low` (Double): Lowest traded price inside period range
+* `close` (Double): Last trade price inside period range
+* `volume` (Double): Cumulative base amount traded inside period range
+* `trades_count` (Integer): Amount of trades executed inside period range
+* `year` (Double): Year of data point. Can be aggregated and mapped to `economics_data['year']`
+* `month` (Double): Month of data point
+* `dayofweek` (Double): Day of week of data point
+* `dayofmonth` (Double): Day of month of data point
+* `dayofyear` (Integer): Day of year of data point
+
+### Dimension Table
+#### crypto_meta
+Detail of each crypto currency
+* `id` (Integer): Unique value used to identify crypto asset mapped to `crypto_data['crypto_id']`
+* `symbol` (String): Crypto symbol from CoinApi.io
+* `currency_base` (String): Base currency
+* `currency_quote` (String): Quote currency
+
+#### stock_data
+Stock time series data
+* `stock_id` (Integer): Value used to identify stock assets 
+* `start_time` (Timestamp): Period starting time
+* `open` (Double): First trade price inside period range
+* `high` (Double): Highest traded price inside period range
+* `low` (Double): Lowest traded price inside period range
+* `close` (Double): Last trade price inside period range
+* `volume` (Double): Cumulative base amount traded inside period range
+* `year` (Double): Year of data point. Can be aggregated and mapped to `economics_data['year']`
+* `month` (Double): Month of data point
+* `dayofweek` (Double): Day of week of data point
+* `dayofmonth` (Double): Day of month of data point
+* `dayofyear` (Integer): Day of year of data point
+
+#### stock_meta
+Detail of each stock
+* `id` (Integer): Unique value used to identify stock asset mapped to `stock_data['stock_id']`
+* `symbol` (String): Ticker symbol from Twelvedata
+* `company` (String): Company
+* `currency` (String): Currency
+
+#### econs_indicator
+Detail of each indicator
+* `id` (Integer): Unique value used to identify economic indicator mapped to `econs_data['indicator_id']`
+* `symbol` (String): Indicator symbol from [world bank](https://data.worldbank.org/indicator/) 
+* `indicator` (String): Economic indicator name
+
+#### country
+Countries with data in our economics table
+* `id` (Integer): Unique value used to identify country mapped to `econs_data['country_id']`
+* `country` (String): Countries we've collected their economic data
+
+#### economics_data
+Actual economic data
+* `indicator_id` (Integer): Value used to identify economic indicator
+* `country_id` (String): Value used to identify country
+* `year` (String): Year of data point
+* `value` (String): Value of data point
+
+
+## Analysis Example
+
 
 ## How to run
 To run the pipeline, you need to have the following setup and ready;

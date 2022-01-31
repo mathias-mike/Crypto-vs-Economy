@@ -148,7 +148,7 @@ def etl_country(spark, econs_indicator, output_bucket, base_path):
 
 
 def etl_econs_data(econs_indicator, output_bucket, base_path, indicator_table, country_table):
-    econs_data_path = 'econs_data'
+    econs_data_path = 'data'
 
     if econs_indicator != None:
         econs_data_table = econs_indicator.select(econs_indicator.symbol, econs_indicator.country, econs_indicator.year, econs_indicator.value)

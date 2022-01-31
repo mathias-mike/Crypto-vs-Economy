@@ -103,7 +103,7 @@ default_args = {
     'retries': 3,
     'retry_delay': timedelta(minutes=5),
     'email_on_retry': False,
-    'start_date': datetime(2016, 1, 1),
+    'start_date': datetime(2018, 1, 1),
 }
 
 

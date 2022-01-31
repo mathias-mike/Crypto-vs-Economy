@@ -6,8 +6,13 @@ config = configparser.ConfigParser()
 airflow_dir = os.path.split(airflow_config['core']['dags_folder'])[0]
 config.read(f'{airflow_dir}/pipeline.cfg')
 
+LOCAL_SCRIPTS_PATH = airflow_dir + '/dags/scripts/'
+
+
 S3_BUCKET = config['AWS']['S3_BUCKET']  # Just the <bucket-name>
-SCRIPTS_PATH = airflow_dir + '/dags/scripts/'
+S3_SCRIPT_PATH = 'scripts/'
+S3_OUTPUT_PATH = 's3://' + S3_BUCKET + '/'
+
 
 CLUSTER_NAME = 'crypto_economics'
 CLUSTER_LOG_URI = 's3://'+S3_BUCKET+'/logs/'
@@ -26,7 +31,8 @@ KEYPAIR_NAME = 'keypair_name'
 
 ECONS_SCRIPT_LAST_RUN = 'econs_script_last_run'
 
-ASSETS_SCRIPT_DONE = 'done_with_assets'
+CRYPTO_SCRIPT_DONE = 'done_with_crypto'
+STOCK_SCRIPT_DONE = 'done_with_stock'
 ECONS_SCRIPT_DONE = 'done_with_econs'
 
 
