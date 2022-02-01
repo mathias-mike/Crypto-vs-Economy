@@ -8,15 +8,17 @@ The data pipeline is built on Apache Airflow, with Apache Spark to pull the data
 
 As of the time of this writing (2022-01-30), there are over 10,000 crypto currencies currently in existence and new once springing up each day. There are over 2,000 of them that have been in existance since 2018 and with an hourly pull of over 4 years of the data with no weekend breaks (a complete 365 days data availability) gives us over 70 million data points to process at max (24 * 365 * 4 * 2000).
 
-To demonstrate that the pipeline works, we only use a small subset of the data consisting of;
+To demonstrate that the pipeline works, we only use a small subset of the data consisting of;\
 3 cryptocurrencies; 
 1. BTC, 
 2. ETH, and 
 3. LTC.
+
 3 stocks;
 1. TSLA: Tesla, Inc.,
 2. GOOGL: Alphabet Inc.,
 3. AMZN: Amazon.com, Inc.,
+
 and 4 other economic indicators;
 1. Unemployment, total (% of total labor force) (national estimate)
 2. GDP (current US$)
