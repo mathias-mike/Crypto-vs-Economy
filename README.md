@@ -8,12 +8,16 @@ The data pipeline is built on Apache Airflow, with Apache Spark to pull the data
 
 As of the time of this writing (2022-01-30), there are over 10,000 crypto currencies currently in existence and new once springing up each day. There are over 2,000 of them that have been in existance since 2018 and with an hourly pull of over 4 years of the data with no weekend breaks (a complete 365 days data availability) gives us over 70 million data points to process at max (24 * 365 * 4 * 2000).
 
-To demonstrate that the pipeline works, we only use a small subset of the data consisting of 3 cryptocurrencies; BTC, ETH, and LTC.\
+To demonstrate that the pipeline works, we only use a small subset of the data consisting of;
+3 cryptocurrencies; 
+1. BTC, 
+2. ETH, and 
+3. LTC.
 3 stocks;
 1. TSLA: Tesla, Inc.,
 2. GOOGL: Alphabet Inc.,
-3. AMZN: Amazon.com, Inc.,\
-and 4 other economic indicators;\
+3. AMZN: Amazon.com, Inc.,
+and 4 other economic indicators;
 1. Unemployment, total (% of total labor force) (national estimate)
 2. GDP (current US$)
 3. Official exchange rate (LCU per US$, period average)
@@ -23,7 +27,8 @@ The cryptocurrencies have data points for each day, the stock data have data poi
 
 
 ## Data model
-The model choosen for the project is a simple snowflake schema with just one level hierarchy
+The model choosen for the project is a simple snowflake schema with just one level hierarchy.
+![Data model](https://raw.githubusercontent.com/mathias-mike/Crypto-vs-Economy/master/media/data_model.png)
 ### Fact Table
 #### crypto_data
 Crypto time series data
@@ -35,10 +40,10 @@ Crypto time series data
 * `close` (Double): Last trade price inside period range
 * `volume` (Double): Cumulative base amount traded inside period range
 * `trades_count` (Integer): Amount of trades executed inside period range
-* `year` (Double): Year of data point. Can be aggregated and mapped to `economics_data['year']`
-* `month` (Double): Month of data point
-* `dayofweek` (Double): Day of week of data point
-* `dayofmonth` (Double): Day of month of data point
+* `year` (Integer): Year of data point. Can be aggregated and mapped to `economics_data['year']`
+* `month` (Integer): Month of data point
+* `dayofweek` (Integer): Day of week of data point
+* `dayofmonth` (Integer): Day of month of data point
 * `dayofyear` (Integer): Day of year of data point
 
 ### Dimension Table
@@ -58,10 +63,10 @@ Stock time series data
 * `low` (Double): Lowest traded price inside period range
 * `close` (Double): Last trade price inside period range
 * `volume` (Double): Cumulative base amount traded inside period range
-* `year` (Double): Year of data point. Can be aggregated and mapped to `economics_data['year']`
-* `month` (Double): Month of data point
-* `dayofweek` (Double): Day of week of data point
-* `dayofmonth` (Double): Day of month of data point
+* `year` (Integer): Year of data point. Can be aggregated and mapped to `economics_data['year']`
+* `month` (Integer): Month of data point
+* `dayofweek` (Integer): Day of week of data point
+* `dayofmonth` (Integer): Day of month of data point
 * `dayofyear` (Integer): Day of year of data point
 
 #### stock_meta
@@ -85,9 +90,9 @@ Countries with data in our economics table
 #### economics_data
 Actual economic data
 * `indicator_id` (Integer): Value used to identify economic indicator
-* `country_id` (String): Value used to identify country
-* `year` (String): Year of data point
-* `value` (String): Value of data point
+* `country_id` (Integer): Value used to identify country
+* `year` (Integer): Year of data point
+* `value` (Double): Value of data point
 
 
 ## Steps 
